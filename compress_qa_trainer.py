@@ -47,12 +47,15 @@ def load_from_disk_then_process(
         num_shards = 512
         if data_component_name in ["text_mem", "text_inst"]:
             remove_columns.append("num_tokens")
-    elif data_component_name in ["qa", "qa_mem"]:
+    elif data_component_name in ["qa", "qa_mem", "qa_compress"]:
         data_path = f"dataset_cache/processed/block_qa/{data_component_name}"
         if data_component_name == "qa":
             preprocessor_fn = preprocessor.process_qa
         elif data_component_name == "qa_mem":
             preprocessor_fn = preprocessor.process_qamem
+        elif data_component_name == "qa_compress":
+            preprocessor_fn = preprocessor.process_qa_chunk_compress
+            data_path = "/data/jingbo_yang/KVMemory/dataset_cache/processed/block_qa/qa_mem"
         else:
             raise NotImplementedError()
         remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
@@ -61,12 +64,12 @@ def load_from_disk_then_process(
         raise NotImplementedError()
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
 
-    streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
+    streaming_train_dataset = data_component["train"]
     # streaming_train_dataset = data_component["train"]
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        # num_proc=16,
+        num_proc=16,
         batched=False,
     )
 
@@ -83,12 +86,12 @@ def load_from_disk_then_process(
 
 
 def main():
-    batch_size_per_device = 8
-    compress_tokens = list(range(128011, 128016))
+    batch_size_per_device = 4
+    compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_pretrain/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "meta-llama/Llama-3.2-1B",
+        "training_res/compress_pretrain/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -103,30 +106,30 @@ def main():
         do_shuffle=True
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("text_compress", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa_compress", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/compress_pretrain",
+        output_dir=f"training_res/compress_qa",
         report_to="wandb",
-        run_name=f"compress_{len(compress_tokens)}_pretrain_bsz{batch_size_per_device}_5e-6",
+        run_name=f"compress_{len(compress_tokens)}_qa_chunk_bsz{batch_size_per_device}_5e-6",
         per_device_train_batch_size= batch_size_per_device,
-        # num_train_epochs=2,
-        max_steps=10000,
+        num_train_epochs=3,
+        # max_steps=10000,
         logging_dir="training_res/logs",
         logging_steps=10,
-        save_steps=5000,
-        gradient_accumulation_steps=1,
+        # save_steps=5000,
+        gradient_accumulation_steps=2,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
         learning_rate=5e-6,
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
-        evaluation_strategy="steps",  # Add this line
-        eval_steps=2000,
+        evaluation_strategy="epoch",
+        # eval_steps=2000,
         gradient_checkpointing=True,
         save_total_limit=1,
         # overwrite_output_dir = False

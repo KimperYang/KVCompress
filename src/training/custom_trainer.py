@@ -1,34 +1,22 @@
 import torch
 from transformers import Trainer
 
-from src.data.compress import construct_compress_attention_matrix
+from src.data.attention import make_segment_mask_with_two_rules
 
 class CustomTrainerCompressAttn(Trainer):
-    def __init__(self, num_sum_tokens, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.num_sum_tokens = num_sum_tokens
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
 
-        attention_matrices = []
-        max_length = max(inputs['input_length'])
-        for idx in range(len(inputs['input_ids'])):
-            mem_num = inputs['mem_num'][idx]
-            if mem_num == 0:
-                biased_ranges = None
-            else:
-                biased_ranges = inputs['biased_index'][idx][:mem_num]
-
-            attention_matrices.append(
-                construct_compress_attention_matrix(
-                    seq_len=inputs['input_length'][idx],
-                    shift_ranges=biased_ranges,
-                    max_len=max_length,
-                    device=inputs['input_ids'].device,
-                    num_sum_tokens=self.num_sum_tokens
-                ).unsqueeze(0)
-            )
-
-        outputs = model(input_ids = inputs['input_ids'], attention_mask = torch.stack(attention_matrices), labels = inputs['labels'], position_ids = inputs['position_ids'])
+        mask = make_segment_mask_with_two_rules(
+            source_segments_1=inputs['segment_ids_1'],
+            target_segments_1=inputs['segment_ids_1'],
+            source_segments_2=inputs['segment_ids_2'],
+            target_segments_2=inputs['segment_ids_2'],
+            dtype=torch.bfloat16,           # For printing, let's keep float
+            add_causal_lm_mask=True     # No causal mask for clarity
+        )
+        outputs = model(input_ids = inputs['input_ids'], attention_mask = mask.unsqueeze(1), labels = inputs['labels'], position_ids = inputs['position_ids'])
 
         return (outputs.loss, outputs) if return_outputs else outputs.loss

@@ -1,83 +1,138 @@
 import torch
+from src.data.attention import make_segment_mask_with_two_rules
 
-def _make_bool_segment_mask(
-    *,
-    source_segments: torch.Tensor,
-    target_segments: torch.Tensor,
-) -> torch.Tensor:
-    target_segments = target_segments.unsqueeze(-1)
-    source_segments = source_segments.unsqueeze(-2)
+def process_text_chunks(
+    text_tokens: list,
+    special_tokens: list,
+    chunk_size: int = 100,
+    chunk_end_token: int = 128253,
+    max_length: int = 1024
+) -> list:
+    """
+    Processes `text_tokens` by splitting into chunks of `chunk_size`.
+    After each chunk, we append:
+      1) chunk_end_token (default=128253),
+      2) all `special_tokens`,
+      3) the same chunk tokens again.
 
-    # Returning the boolean mask based on equality
-    return torch.eq(source_segments, target_segments)[:, ...]
-
-def make_segment_mask(
-    *,
-    source_segments: torch.Tensor,
-    target_segments: torch.Tensor,
-    dtype: torch.dtype = torch.bfloat16,
-    add_causal_lm_mask: bool = True,
-) -> torch.Tensor:
-    """Generates attention logit biases given the segment ids.
-
-    ... such that positions belonging to different segments cannot attend to each other.
-    This function is based on the implementation of AXLearn from Apple. The original
-        implementation of the make_segment_mask can be found in:
-        https://github.com/apple/axlearn/blob/main/axlearn/common/attention_bias.py#L767
-
+    We accumulate these processed chunks in a single list until
+    adding one more chunk would exceed `max_length`.
+    
     Args:
-        source_segments: An integer tensor of shape [batch, ..., source_length].
-        target_segments: An integer tensor of shape [batch, ..., target_length].
+        text_tokens (list): A list of integer token IDs for the text.
+        special_tokens (list): A list of integer token IDs to append.
+        chunk_size (int): The size of each chunk. Defaults to 100.
+        chunk_end_token (int): The special token (e.g. 128253) appended to mark the chunk end.
+        max_length (int): The max length of the final output sequence.
 
     Returns:
-        A float Tensor of shape [batch, 1, ..., target_length, source_length] where the
-        value at [..., i, j] = 0 if target_segments[..., i] == source_segments[..., j], or -inf
-        otherwise.
+        list: The processed token list.
     """
-    # min_dtype = torch.finfo(dtype).min
-    min_dtype = -float("inf")
-    sequence_len = source_segments.size(-1)
-    batch_size = source_segments.size(0)
-    if add_causal_lm_mask:
-        segment_logit_bias = torch.triu(
-            torch.full(
-                (batch_size, sequence_len, sequence_len),
-                # NEG_INF,
-                min_dtype,
-                dtype=dtype,
-                device=source_segments.device
-            ),
-        diagonal=1)
-    else:
-        segment_logit_bias = torch.zeros(
-            size=(batch_size, sequence_len, sequence_len),
-            dtype=dtype,
-            device=source_segments.device,
-        )
+    output_sequence = []
+    segment_ids_1 = []
+    segment_ids_2 = []
+    labels = []
+    position_ids = []
+    chunk_counter = 0
+    # 1. Split text_tokens into slices of size `chunk_size`.
+    for i in range(0, len(text_tokens), chunk_size):
 
-    # within the same segment
-    bool_mask = _make_bool_segment_mask(
-        source_segments=source_segments, target_segments=target_segments
+        chunk_counter += 1
+        chunk = text_tokens[i : i + chunk_size]
+
+        chunk_len = len(chunk)  # could be < chunk_size for the last chunk
+
+        if chunk_len < chunk_size:
+            break  # no more tokens
+
+        # 2. Build the processed chunk
+        #    chunk + [chunk_end_token] + special_tokens + chunk
+        processed_chunk = chunk + [chunk_end_token] + special_tokens + chunk
+
+        # 3. Check if adding this processed chunk would exceed max_length
+        if len(output_sequence) + len(processed_chunk) > max_length:
+            # If we can't add this chunk without exceeding,
+            # we stop processing further.
+            break
+
+        segment_ids_1.extend([chunk_counter] * len(processed_chunk))
+
+        segment_ids_2.extend([1] * (chunk_len + 1) + [2] * len(special_tokens) + [3] * chunk_len)
+
+        labels.extend([-100] * (chunk_len + 1 + len(special_tokens)) + chunk)
+
+        position_ids.extend(list(range(-chunk_len-1, len(special_tokens) + chunk_len)))
+
+        output_sequence.extend(processed_chunk)
+
+    return {
+        "input_ids": output_sequence,
+        "segment_ids_rule1": segment_ids_1,
+        "segment_ids_rule2": segment_ids_2,
+        "labels": labels,
+        "position_ids": position_ids,
+    }
+
+
+if __name__ == "__main__":
+    # Example: We have 10 tokens total.
+    # We'll use chunk_size=3 to demonstrate chunk-splitting.
+    text_tokens = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
+    special_tokens = [999, 1000]  # e.g. some special markers
+
+    result = process_text_chunks(
+        text_tokens=text_tokens,
+        special_tokens=special_tokens,
+        chunk_size=5,
+        chunk_end_token=128253,
+        max_length=50  # for demonstration
     )
 
-    # Create masks for tokens belonging to segment 0
-    # Shape [batch, ..., 1, source_length]
-    target_is_zero = (target_segments == 0).unsqueeze(-1)
 
-    # Tokens in segment 0 can be attended by any token
-    zero_mask = target_is_zero
 
-    # masks that indicates the token is a pad token
-    # Shape [batch, ..., 1, source_length]
-    source_invalid_mask = (source_segments == -1).unsqueeze(-2)
-    target_invalid_mask = (target_segments == -1).unsqueeze(-1)
-    # Combine invalid masks: pad tokens
-    invalid_mask = source_invalid_mask | target_invalid_mask
+    print("Output length:", len(result["input_ids"]))
+    for k, v in result.items():
+        print(f"{k} = {v}")
 
-    # all_masks = (~bool_mask) & (~zero_mask)
-    all_masks = invalid_mask | ((~bool_mask) & (~zero_mask))
-    segment_logit_bias = segment_logit_bias.masked_fill_(all_masks, min_dtype)
+    mask = make_segment_mask_with_two_rules(
+        source_segments_1=torch.tensor([result['segment_ids_rule1']]),
+        target_segments_1=torch.tensor([result['segment_ids_rule1']]),
+        source_segments_2=torch.tensor([result['segment_ids_rule2']]),
+        target_segments_2=torch.tensor([result['segment_ids_rule2']]),
+        dtype=torch.bfloat16,           # For printing, let's keep float
+        add_causal_lm_mask=True     # No causal mask for clarity
+    )
 
-    # if dtype is torch.bfloat16:
-    #     segment_logit_bias = segment_logit_bias.bfloat16()
-    return segment_logit_bias
+    print(mask)
+
+# import torch
+# from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
+# from src.data.input_preprocessor import custom_collate_compress, compress_attention_preprocessor
+# import datasets
+
+# data_component = datasets.load_from_disk("/data/jingbo_yang/KVMemory/dataset_cache/processed/block_qa/qa_mem")['test']
+
+# compress_tokens = list(range(128011, 128016))
+
+# global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+# global_model = AutoModelForCausalLM.from_pretrained(
+#     "meta-llama/Llama-3.2-1B",
+#     torch_dtype=torch.bfloat16,
+#     attn_implementation='sdpa',
+#     # use_flash_attention_2=True,
+# )
+
+# preprocessor = compress_attention_preprocessor(
+#     tokenizer=global_tokenizer,
+#     max_len=4096,
+#     compress_tokens=compress_tokens,
+#     chunk_size=100,
+#     chunk_end_token=128253,
+#     do_shuffle=True
+# )
+
+# training_data = data_component.map(
+#     preprocessor.process_qa_chunk_compress,
+#     # num_proc=16,
+#     batched=False,
+# )
