@@ -2,7 +2,7 @@ result/
 wandb/
 .vscode/
 *pyc
-KVMemory.egg-info/
+KVCompress.egg-info/
 /data/
 result/
 training_res/

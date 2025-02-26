@@ -102,7 +102,7 @@ def main(argv):
     qamem = dataset.filter(qamem_filter, num_proc=96)
     qamem = qamem.train_test_split(test_size=FLAGS.validation_size)
 
-    qamem.save_to_disk("dataset_cache/processed/compress_qa/qamem", num_shards=shards, num_proc=128)
+    qamem.save_to_disk("dataset_cache/processed/compress_qa/qa_mem", num_shards=shards, num_proc=128)
     print("qamem:", qamem)
 
 if __name__ == "__main__":

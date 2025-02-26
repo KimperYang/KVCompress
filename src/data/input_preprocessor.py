@@ -50,6 +50,25 @@ class compress_attention_preprocessor():
         self.global_end_token = global_end_token
         self.pad_token = pad_token
 
+    def process_pretraining(
+        self,
+        example
+    ):
+        text_tokens = self.tokenizer(example['text']).input_ids[:self.max_len]
+        output_sequence = text_tokens
+        segment_ids_1 = [0] * len(text_tokens)
+        segment_ids_2 = [3] * len(text_tokens)
+        labels = text_tokens
+        position_ids = list(range(len(text_tokens)))
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
     def process_pretraining_compress(
         self,
         example
@@ -291,4 +310,103 @@ def custom_collate_compress(batch):
             "segment_ids_2": torch.LongTensor(segment_ids_2),
             "labels": torch.LongTensor(labels),
             "position_ids": torch.LongTensor(position_ids),
+        }
+
+
+class upper_attention_preprocessor():
+    '''
+    Apply one piece of memory to non-memory use samples to enable batch forward pass for calculating KV.
+    '''
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        max_len: int,
+        do_shuffle: bool,
+    ) -> None:
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+        self.do_shuffle = do_shuffle
+
+    def process_pretraining(
+        self,
+        example
+    ):
+        text_tokens = self.tokenizer(example['text']).input_ids[:self.max_len]
+        output_sequence = text_tokens
+        labels = text_tokens
+
+        return {
+            "input_ids": output_sequence,
+            "labels": labels,
+        }
+
+    def process_qa(
+        self,
+        example
+    ):
+        
+        output_sequence = []
+        labels = []
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(qa_prompts)
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids
+        sys_len = len(system_input_ids)
+
+        output_sequence.extend(system_input_ids)
+        labels.extend([-100] * sys_len)
+
+        doc_list = []
+
+        for k in range(0,10):
+            title = example['documents'][k]['title']
+            text = example['documents'][k]['text']
+            doc_list.append({'title': title, 'text':text})
+
+        if self.do_shuffle:
+            random.shuffle(doc_list)
+
+        for j in range(0,10):
+            title = doc_list[j]['title']
+            text = doc_list[j]['text']
+            tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids
+
+            labels.extend([-100] * (len(tem_id)))
+
+        user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        user_id = self.tokenizer(user, add_special_tokens=False).input_ids
+        user_len = len(user_id)
+        labels.extend([-100] * user_len)
+        output_sequence.extend(user_id)
+
+        ans_id = self.tokenizer(example['generated'] + "<|eot_id|>", add_special_tokens=False).input_ids
+        labels.extend(ans_id)
+        output_sequence.extend(ans_id)
+
+        return {
+            "input_ids": output_sequence,
+            "labels": labels,
+        }
+
+def custom_collate_upper(batch):
+
+        input_ids = []
+        labels = []
+        length_list = [len(x['input_ids']) for x in batch]
+
+        max_length = max(length_list)
+
+        for item in batch:
+
+            seq_length = len(item['input_ids'])
+            residual = max_length - seq_length
+
+            padded_input_ids = item['input_ids'] + [0] * residual
+            input_ids.append(padded_input_ids)
+
+            padded_labels = item['labels'] + [-100] * residual
+            labels.append(padded_labels)
+
+        return {
+            "input_ids": torch.LongTensor(input_ids),
+            "labels": torch.LongTensor(labels)
         }
