@@ -36,13 +36,10 @@ def load_from_disk_then_process(
             "file_path", "language", "language_score", "token_count",
         ]
         num_shards = 512
-    elif data_component_name in ["qa", "qa2"]:
+    elif data_component_name in ["qa"]:
         if data_component_name == "qa":
             preprocessor_fn = preprocessor.process_qa
-            data_path = "/data/jingbo_yang/KVMemory/dataset_cache/processed/block_qa/qa"
-        elif data_component_name == "qa2":
-            preprocessor_fn = preprocessor.process_qa
-            data_path = "/data/jingbo_yang/KVMemory/dataset_cache/processed/block_qa/qa_mem"
+            data_path = "dataset_cache/processed/compress_qa"
         else:
             raise NotImplementedError()
         remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
@@ -51,11 +48,11 @@ def load_from_disk_then_process(
         raise NotImplementedError()
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
 
-    streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
+    streaming_train_dataset = data_component["train"]
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        # num_proc=16,
+        num_proc=16,
         batched=False,
     )
 
@@ -74,9 +71,9 @@ def load_from_disk_then_process(
 def main():
     batch_size_per_device = 4
 
-    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B-Instruct")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "meta-llama/Llama-3.2-1B",
+        "meta-llama/Llama-3.2-1B-Instruct",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -88,33 +85,18 @@ def main():
         do_shuffle=True
     )
 
-    qa2_train, qa2_eval = load_from_disk_then_process("qa2", preprocessor)
-    qa_train, qa_eval = load_from_disk_then_process("qa", preprocessor)
-
-    train_dataset = datasets.interleave_datasets(
-        [qa_train, qa2_train],
-        probabilities=[0.50, 0.50],
-        seed=42,
-        stopping_strategy="all_exhausted",
-    )
-
-    eval_dataset = datasets.DatasetDict({
-        "qa_eval": qa_eval,
-        "qa2_eval": qa2_eval
-    })
-
-
+    train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/upper",
+        output_dir=f"training_res/upper_3epoch",
         report_to="wandb",
-        run_name=f"upper_bsz{batch_size_per_device}_5e-6",
+        run_name=f"upper_3epoch_bsz{batch_size_per_device}_5e-6",
         per_device_train_batch_size= batch_size_per_device,
-        # num_train_epochs=3,
-        max_steps=2500,
+        num_train_epochs=3,
+        # max_steps=2500,
         logging_dir="training_res/logs",
         logging_steps=10,
         # save_steps=5000,
@@ -125,8 +107,8 @@ def main():
         learning_rate=5e-6,
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
-        evaluation_strategy="steps",
-        eval_steps=1000,
+        evaluation_strategy="epoch",
+        # eval_steps=500,
         gradient_checkpointing=True,
         save_total_limit=1,
         # overwrite_output_dir = False

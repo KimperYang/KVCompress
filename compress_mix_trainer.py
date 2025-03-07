@@ -32,7 +32,7 @@ def load_from_disk_then_process(
             preprocessor_fn = preprocessor.process_pretraining
             data_path = "/data/jingbo_yang/KVCompress/dataset_cache/processed/fineweb/text"
         elif data_component_name == "text_compress":
-            preprocessor_fn = preprocessor.process_pretraining_compress
+            preprocessor_fn = preprocessor.process_pretraining_instruct_compress
             data_path = "/data/jingbo_yang/KVCompress/dataset_cache/processed/fineweb/text_compress"
         else:
             raise NotImplementedError()
@@ -120,9 +120,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/compress_mix_v2",
+        output_dir=f"training_res/compress_mix_v2_instruct",
         report_to="wandb",
-        run_name=f"compress_{len(compress_tokens)}_mix_v2_bsz{batch_size_per_device}_5e-6",
+        run_name=f"compress_{len(compress_tokens)}_mix_v2_instruct_bsz{batch_size_per_device}_5e-6",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=3,
         max_steps=5000,
@@ -157,7 +157,7 @@ def main():
         data_collator = custom_collate_compress
     )
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint = True)
 
 if __name__ == "__main__":
     main()

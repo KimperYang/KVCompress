@@ -38,7 +38,9 @@ class compress_attention_preprocessor():
         do_shuffle: bool,
         global_start_token: int = 128254,
         global_end_token: int = 128255,
-        pad_token: int = 128004
+        pad_token: int = 128004,
+        link_token_num: int = 1,
+        max_memory_num: int = 50
     ) -> None:
         self.tokenizer = tokenizer
         self.max_len = max_len
@@ -49,6 +51,16 @@ class compress_attention_preprocessor():
         self.global_start_token = global_start_token
         self.global_end_token = global_end_token
         self.pad_token = pad_token
+        self.link_token_num = link_token_num
+
+        link_token_start = self.compress_tokens[-1] + 1
+        self.link_tokens = [
+            [
+                link_token_start + idx * self.link_token_num + offset
+                for offset in range(self.link_token_num)
+            ]
+            for idx in range(max_memory_num)
+        ]
 
     def process_pretraining(
         self,
@@ -110,6 +122,161 @@ class compress_attention_preprocessor():
             position_ids.extend(list(range(-chunk_len-1, len(self.compress_tokens) + chunk_len)))
 
             output_sequence.extend(processed_chunk)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_pretraining_instruct_compress(
+        self,
+        example
+    ):
+        instruction_tokens = self.tokenizer("Repeat the preceding sentence.").input_ids
+        instruction_len = len(instruction_tokens)
+        text_tokens = self.tokenizer(example['text']).input_ids
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+        chunk_counter = 0
+        # 1. Split text_tokens into slices of size `self.chunk_size`.
+        for i in range(0, len(text_tokens), self.chunk_size):
+
+            chunk_counter += 1
+            chunk = text_tokens[i : i + self.chunk_size]
+
+            chunk_len = len(chunk)  # could be < self.chunk_size for the last chunk
+
+            if chunk_len < self.chunk_size:
+                break  # no more tokens
+
+            # 2. Build the processed chunk
+            #    chunk + [chunk_end_token] + self.compress_tokens + chunk
+            processed_chunk = chunk + [self.chunk_end_token] + self.compress_tokens + instruction_tokens + chunk
+
+            # 3. Check if adding this processed chunk would exceed max_length
+            if len(output_sequence) + len(processed_chunk) > self.max_len:
+                # If we can't add this chunk without exceeding,
+                # we stop processing further.
+                break
+
+            segment_ids_1.extend([chunk_counter] * len(processed_chunk))
+
+            segment_ids_2.extend([1] * (chunk_len + 1) + [2] * len(self.compress_tokens) + [3] * (instruction_len + chunk_len))
+
+            labels.extend([-100] * (chunk_len + 1 + len(self.compress_tokens) + instruction_len) + chunk)
+
+            position_ids.extend(list(range(-chunk_len-1, len(self.compress_tokens) + instruction_len + chunk_len)))
+
+            output_sequence.extend(processed_chunk)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_pretraining_completion_compress(
+        self,
+        example
+    ):
+        text_tokens = self.tokenizer(example['text']).input_ids
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+        chunk_counter = 0
+        # 1. Split text_tokens into slices of size `self.chunk_size`.
+        for i in range(0, len(text_tokens), 2 * self.chunk_size):
+
+            chunk_counter += 1
+            chunk1 = text_tokens[i : i + self.chunk_size]
+            chunk2 = text_tokens[i + self.chunk_size : i + 2 * self.chunk_size]
+            chunk1_len = len(chunk1)
+            chunk2_len = len(chunk2)  # could be < self.chunk_size for the last chunk
+
+            if chunk2_len < self.chunk_size:
+                break  # no more tokens
+
+            # 2. Build the processed chunk
+            #    chunk + [chunk_end_token] + self.compress_tokens + chunk
+            processed_chunk = chunk1 + [self.chunk_end_token] + self.compress_tokens + chunk2
+
+            # 3. Check if adding this processed chunk would exceed max_length
+            if len(output_sequence) + len(processed_chunk) > self.max_len:
+                # If we can't add this chunk without exceeding,
+                # we stop processing further.
+                break
+
+            segment_ids_1.extend([chunk_counter] * len(processed_chunk))
+
+            segment_ids_2.extend([1] * (chunk1_len + 1) + [2] * len(self.compress_tokens) + [3] * chunk2_len)
+
+            labels.extend([-100] * (chunk1_len + 1 + len(self.compress_tokens)) + chunk2)
+
+            position_ids.extend(list(range(-chunk1_len - 1, len(self.compress_tokens) + chunk2_len)))
+
+            output_sequence.extend(processed_chunk)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_pretraining_multichunk_completion_compress(
+        self,
+        example
+    ):
+        text_tokens = self.tokenizer(example['text'], add_special_tokens=False).input_ids[:self.max_len]
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+        chunk_num = random.randint(5,20)
+        remaining_ids = text_tokens[chunk_num * self.chunk_size:]
+        remaining_len = len(remaining_ids)
+
+        bos_tokens = self.tokenizer("").input_ids
+        output_sequence.extend(bos_tokens + [self.global_start_token])
+        segment_ids_1.extend([0]*2)
+        segment_ids_2.extend([3]*2)
+        labels.extend([-100]*2)
+        position_ids.extend([0,1])
+
+        current_position = 2
+        for i in range(chunk_num):
+            chunk_counter = i+1
+            chunk_ids = text_tokens[i * self.chunk_size : i * self.chunk_size + self.chunk_size] + [self.chunk_end_token]
+            chunk_len = len(chunk_ids)
+
+            segment_ids_1.extend([chunk_counter] * (chunk_len + len(self.compress_tokens)))
+
+            segment_ids_2.extend([1] * chunk_len + [2] * len(self.compress_tokens))
+
+            labels.extend([-100] * (chunk_len + len(self.compress_tokens)))
+
+            position_ids.extend(list(range(current_position - chunk_len, current_position + len(self.compress_tokens))))
+            current_position += len(self.compress_tokens)
+
+            output_sequence.extend(chunk_ids + self.compress_tokens)
+
+        output_sequence.extend([self.global_end_token] + remaining_ids)
+        segment_ids_1.extend([0] * (1 + remaining_len))
+        segment_ids_2.extend([3] * (1 + remaining_len))
+        labels.extend([-100] + remaining_ids)
+        position_ids.extend(list(range(current_position, current_position + 1 + remaining_len)))
 
         return {
             "input_ids": output_sequence,
@@ -273,6 +440,170 @@ class compress_attention_preprocessor():
             "position_ids": position_ids,
         }
 
+    def process_qa_chunk_nopadding_compress(
+        self,
+        example
+    ):
+        
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(qa_prompts)
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids + [self.global_start_token]
+        sys_len = len(system_input_ids)
+
+        output_sequence.extend(system_input_ids)
+        segment_ids_1.extend([0] * sys_len)
+        segment_ids_2.extend([3] * sys_len)
+        labels.extend([-100] * sys_len)
+        position_ids.extend(list(range(sys_len)))
+
+        doc_list = []
+
+        for k in range(0,10):
+            title = example['documents'][k]['title']
+            text = example['documents'][k]['text']
+            doc_list.append({'title': title, 'text':text})
+
+        if self.do_shuffle:
+            random.shuffle(doc_list)
+
+        current_index = sys_len
+
+        chunk_idx = 1
+        for j in range(0,10):
+
+            title = doc_list[j]['title']
+            text = doc_list[j]['text']
+            tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids + [self.chunk_end_token]
+
+            for idx in range(0, len(tem_id), self.chunk_size):
+                chunk_id = tem_id[idx : idx + self.chunk_size]
+                chunk_len = len(chunk_id)
+                
+                segment_ids_1.extend([chunk_idx] * (chunk_len + 1 + len(self.compress_tokens)))
+                segment_ids_2.extend([1] * (chunk_len + 1) + [2] * len(self.compress_tokens))
+                labels.extend([-100] * (chunk_len + 1 + len(self.compress_tokens)))
+                position_ids.extend(list(range(current_index - chunk_len - 1, current_index + len(self.compress_tokens))))
+                output_sequence.extend(chunk_id + [self.chunk_end_token] + self.compress_tokens)
+
+                current_index += len(self.compress_tokens)
+                chunk_idx += 1
+
+        user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        user_id = [self.global_end_token] + self.tokenizer(user, add_special_tokens=False).input_ids
+        user_len = len(user_id)
+        segment_ids_1.extend([0] * user_len)
+        segment_ids_2.extend([3] * user_len)
+        labels.extend([-100] * user_len)
+        position_ids.extend(list(range(current_index, current_index + user_len)))
+        output_sequence.extend(user_id)
+        current_index += user_len
+
+        ans_id = self.tokenizer(example['generated'] + "<|eot_id|>", add_special_tokens=False).input_ids
+        ans_len = len(ans_id)
+        segment_ids_1.extend([0] * ans_len)
+        segment_ids_2.extend([3] * ans_len)
+        labels.extend(ans_id)
+        position_ids.extend(list(range(current_index, current_index + ans_len)))
+        output_sequence.extend(ans_id)
+
+        # import ipdb
+        # ipdb.set_trace()
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_qa_chunk_nopadding_kvlink(
+        self,
+        example
+    ):
+
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(qa_prompts)
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids + [self.global_start_token]
+        sys_len = len(system_input_ids)
+
+        output_sequence.extend(system_input_ids)
+        segment_ids_1.extend([0] * sys_len)
+        segment_ids_2.extend([3] * sys_len)
+        labels.extend([-100] * sys_len)
+        position_ids.extend(list(range(sys_len)))
+
+        doc_list = []
+
+        for k in range(0,10):
+            title = example['documents'][k]['title']
+            text = example['documents'][k]['text']
+            doc_list.append({'title': title, 'text':text})
+
+        if self.do_shuffle:
+            random.shuffle(doc_list)
+
+        current_index = sys_len
+
+        chunk_idx = 1
+        for j in range(0,10):
+
+            title = doc_list[j]['title']
+            text = doc_list[j]['text']
+            tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids
+
+            for idx in range(0, len(tem_id), self.chunk_size):
+                chunk_id = tem_id[idx : idx + self.chunk_size]
+                chunk_len = len(chunk_id)
+                
+                segment_ids_1.extend([chunk_idx] * (chunk_len + 1 + len(self.compress_tokens)) + [0] * self.link_token_num)
+                segment_ids_2.extend([1] * (chunk_len + 1) + [2] * len(self.compress_tokens) + [3] * self.link_token_num)
+                labels.extend([-100] * (chunk_len + 1 + len(self.compress_tokens) + self.link_token_num))
+                position_ids.extend(list(range(current_index - chunk_len - 1, current_index + len(self.compress_tokens) + self.link_token_num)))
+                output_sequence.extend(chunk_id + [self.chunk_end_token] + self.compress_tokens + self.link_tokens[chunk_idx-1])
+
+                current_index += len(self.compress_tokens) + self.link_token_num
+                chunk_idx += 1
+
+        user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        user_id = [self.global_end_token] + self.tokenizer(user, add_special_tokens=False).input_ids
+        user_len = len(user_id)
+        segment_ids_1.extend([0] * user_len)
+        segment_ids_2.extend([3] * user_len)
+        labels.extend([-100] * user_len)
+        position_ids.extend(list(range(current_index, current_index + user_len)))
+        output_sequence.extend(user_id)
+        current_index += user_len
+
+        ans_id = self.tokenizer(example['generated'] + "<|eot_id|>", add_special_tokens=False).input_ids
+        ans_len = len(ans_id)
+        segment_ids_1.extend([0] * ans_len)
+        segment_ids_2.extend([3] * ans_len)
+        labels.extend(ans_id)
+        position_ids.extend(list(range(current_index, current_index + ans_len)))
+        output_sequence.extend(ans_id)
+
+        # import ipdb
+        # ipdb.set_trace()
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
 def custom_collate_compress(batch):
 
         input_ids = []
@@ -369,7 +700,7 @@ class upper_attention_preprocessor():
             title = doc_list[j]['title']
             text = doc_list[j]['text']
             tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids
-
+            output_sequence.extend(tem_id)
             labels.extend([-100] * (len(tem_id)))
 
         user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"

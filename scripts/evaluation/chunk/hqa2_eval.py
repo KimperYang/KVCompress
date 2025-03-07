@@ -1,8 +1,10 @@
+import os
 import torch
 import string
 import argparse
 import json
 import regex
+import datasets
 
 from typing import List
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -70,24 +72,15 @@ def best_subspan_em(prediction: str, ground_truths: List[str]) -> float:
 parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
 parser.add_argument('--run', type=str, required=True, help='Path under training_res')
 parser.add_argument('--ckpt', type=int, required=True, help='Checkpoint number')
-parser.add_argument('--pos', type=int, required=True, help='Position value')
 
 args = parser.parse_args()
 
 run_name = args.run
 ckpt = args.ckpt
-pos = args.pos
 
-if pos in [0, 4, 9]:
-    file_path = f'data/nq/nq-open-10_{pos}.jsonl'
-else:
-    file_path = path_or_buf='data/nq/nq-open-10_0.jsonl'
-
-data = []
-with open(file_path, 'r', encoding='utf-8') as f:
-    for line in f:
-        record = json.loads(line)
-        data.append(record)
+file_path = "data/block_eval/hqa/eval.jsonl"
+with open(file_path, 'r') as file:
+    data = [json.loads(line) for line in file]
 
 tokenizer = AutoTokenizer.from_pretrained(f"training_res/{run_name}/checkpoint-{ckpt}")
 model = AutoModelForCausalLM.from_pretrained(f"training_res/{run_name}/checkpoint-{ckpt}", torch_dtype=torch.bfloat16)
@@ -123,22 +116,12 @@ for i in range(total_num):
     segment_ids_2.extend([3] * sys_len)
     position_ids.extend(list(range(sys_len)))
 
-    doc_list = []
-    for k in range(0,10):
-        title = data[i]["ctxs"][k]["title"]
-        text = data[i]["ctxs"][k]["text"]
-        doc_list.append({'title': title, 'text':text})
-
-    if pos not in [0,4,9]:
-        ground_truth = doc_list.pop(0)
-        doc_list.insert(pos, ground_truth)
-
     chunk_idx = 1
     current_index = sys_len
 
-    for j in range(0,10):
-        title = doc_list[j]["title"]
-        text = doc_list[j]["text"]
+    for j in range(len(data[i]['documents'])):
+        title = data[i]['documents'][j]['title']
+        text = data[i]['documents'][j]['text']
         tem_id = tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids + [chunk_end_token]
 
         for idx in range(0, len(tem_id), chunk_size):
@@ -207,5 +190,14 @@ for i in range(total_num):
         res_list.append({"id": str(i),"question": data[i]["question"], "response": response, "gold_answer": data[i]["answers"], "Score": score})
         print("Correct progress", correct_num)
     
+if not os.path.exists(f"result/{run_name}"):
+    os.makedirs(f"result/{run_name}")
+
 accuracy = correct_num / total_num
-print(accuracy)
+
+file_name = f"result/{run_name}/hqa2_ckpt{ckpt}_{accuracy}.jsonl"
+
+with open(file_name, 'w', encoding='utf-8') as f:
+    for entry in res_list:
+        json_line = json.dumps(entry)
+        f.write(json_line + '\n')

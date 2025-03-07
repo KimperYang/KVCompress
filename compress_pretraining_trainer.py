@@ -27,13 +27,18 @@ def load_from_disk_then_process(
     """
     load the downloaded data from disk and then pair it with the preprocessor
     """
-    if data_component_name in ["text", "text_compress"]:
+    if data_component_name in ["text", "text_mem", "text_compress", "text_multichunk"]:
+        data_path = f"dataset_cache/processed/fineweb/{data_component_name}"
         if data_component_name == "text":
-            preprocessor_fn = preprocessor.process_pretraining
-            data_path = "/data/jingbo_yang/KVCompress/dataset_cache/processed/fineweb/text"
+            preprocessor_fn = preprocessor.process_text
+        elif data_component_name == "text_mem":
+            preprocessor_fn = preprocessor.process_textmem
+        elif data_component_name == "text_multichunk":
+            preprocessor_fn = preprocessor.process_pretraining_multichunk_completion_compress
+            data_path = "dataset_cache/processed/fineweb/text_min2048"
         elif data_component_name == "text_compress":
-            preprocessor_fn = preprocessor.process_pretraining_instruct_compress
-            data_path = "/data/jingbo_yang/KVCompress/dataset_cache/processed/fineweb/text_compress"
+            preprocessor_fn = preprocessor.process_pretraining_completion_compress
+            data_path = "dataset_cache/processed/fineweb/text"
         else:
             raise NotImplementedError()
         remove_columns = [
@@ -41,30 +46,18 @@ def load_from_disk_then_process(
             "file_path", "language", "language_score", "token_count",
         ]
         num_shards = 512
-    elif data_component_name in ["qa", "qa_compress", "qa_link"]:
-        if data_component_name == "qa":
-            preprocessor_fn = preprocessor.process_qa_chunk_nopadding_compress
-            data_path = "dataset_cache/processed/compress_qa"
-        elif data_component_name == "qa_compress":
-            preprocessor_fn = preprocessor.process_qa_chunk_compress
-            data_path = "dataset_cache/processed/compress_qa"
-        elif data_component_name == "qa_link":
-            preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink
-            data_path = "dataset_cache/processed/compress_qa"
-        else:
-            raise NotImplementedError()
-        remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
-        num_shards = 32
+        if data_component_name in ["text_mem", "text_inst"]:
+            remove_columns.append("num_tokens")
     else:
         raise NotImplementedError()
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
 
-    streaming_train_dataset = data_component["train"]
+    streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
     # streaming_train_dataset = data_component["train"]
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        num_proc=16,
+        # num_proc=16,
         batched=False,
     )
 
@@ -74,7 +67,7 @@ def load_from_disk_then_process(
         remove_columns=remove_columns,
         num_proc=16,
         batched=False,
-        # load_from_cache_file=False
+        load_from_cache_file=False
     )
 
     return training_data, eval_data
@@ -84,9 +77,9 @@ def main():
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_pretrain_multichunk10k/checkpoint-10000")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_pretrain_completion/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/compress_pretrain_multichunk10k/checkpoint-10000",
+        "training_res/compress_pretrain_completion/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -101,38 +94,21 @@ def main():
         do_shuffle=True
     )
 
-    # train_dataset, eval_dataset = load_from_disk_then_process("qa_compress", preprocessor)
-
-    # qa_compress_train, qa_compress_eval = load_from_disk_then_process("qa_compress", preprocessor)
-    # qa_train, qa_eval = load_from_disk_then_process("qa", preprocessor)
-
-    # train_dataset = datasets.interleave_datasets(
-    #     [qa_compress_train, qa_train],
-    #     probabilities=[0.50, 0.50],
-    #     seed=42,
-    #     stopping_strategy="all_exhausted",
-    # )
-
-    # eval_dataset = datasets.DatasetDict({
-    #     "qa_compress": qa_compress_eval,
-    #     "qa_eval": qa_eval
-    # })
-
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_link", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/compress_qa_nopadding_kvlink_stage3_10k_epoch2",
+        output_dir=f"training_res/compress_pretrain_multichunk10k",
         report_to="wandb",
-        run_name=f"compress_{len(compress_tokens)}_qa_nopadding_kvlink_stage3_10k_epoch2_bsz{batch_size_per_device}_5e-6",
+        run_name=f"compress_{len(compress_tokens)}_pretrain_multichunk10k_bsz{batch_size_per_device}_5e-6",
         per_device_train_batch_size= batch_size_per_device,
-        num_train_epochs=2,
-        # max_steps=2500,
+        # num_train_epochs=2,
+        max_steps=10000,
         logging_dir="training_res/logs",
         logging_steps=10,
-        # save_steps=5000,
+        save_steps=4000,
         gradient_accumulation_steps=2,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
@@ -140,8 +116,8 @@ def main():
         learning_rate=5e-6,
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
-        evaluation_strategy="epoch",
-        # eval_steps=1000,
+        evaluation_strategy="steps",  # Add this line
+        eval_steps=1000,
         gradient_checkpointing=True,
         save_total_limit=1,
         # overwrite_output_dir = False
