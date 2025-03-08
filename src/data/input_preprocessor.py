@@ -797,21 +797,25 @@ class compress_ratio_preprocessor():
         labels = []
         position_ids = []
         chunk_counter = 0
-        # 1. Split text_tokens into slices of size `self.chunk_size`.
-        for i in range(0, len(text_tokens), 2 * self.chunk_size):
+
+        chunk_len = int(random.randint(self.single_chunk_size[0], self.single_chunk_size[1]) / 2)
+        # 1. Split text_tokens into slices of size `chunk_len`.
+        for i in range(0, len(text_tokens), 2 * chunk_len):
 
             chunk_counter += 1
-            chunk1 = text_tokens[i : i + self.chunk_size]
-            chunk2 = text_tokens[i + self.chunk_size : i + 2 * self.chunk_size]
+            chunk1 = text_tokens[i : i + chunk_len]
+            chunk2 = text_tokens[i + chunk_len : i + 2 * chunk_len]
             chunk1_len = len(chunk1)
             chunk2_len = len(chunk2)  # could be < self.chunk_size for the last chunk
 
-            if chunk2_len < self.chunk_size:
+            if chunk2_len < chunk_len:
                 break  # no more tokens
 
+            chunk_compress_token_len = self.round_up_to_10((chunk_len + 1) * self.compress_ratio)
+            chunk_compress_tokens = self.compress_tokens[:chunk_compress_token_len]
+
             # 2. Build the processed chunk
-            #    chunk + [chunk_end_token] + self.compress_tokens + chunk
-            processed_chunk = chunk1 + [self.chunk_end_token] + self.compress_tokens + chunk2
+            processed_chunk = chunk1 + [self.chunk_end_token] + chunk_compress_tokens + chunk2
 
             # 3. Check if adding this processed chunk would exceed max_length
             if len(output_sequence) + len(processed_chunk) > self.max_len:
@@ -821,11 +825,11 @@ class compress_ratio_preprocessor():
 
             segment_ids_1.extend([chunk_counter] * len(processed_chunk))
 
-            segment_ids_2.extend([1] * (chunk1_len + 1) + [2] * len(self.compress_tokens) + [3] * chunk2_len)
+            segment_ids_2.extend([1] * (chunk1_len + 1) + [2] * chunk_compress_token_len + [3] * chunk2_len)
 
-            labels.extend([-100] * (chunk1_len + 1 + len(self.compress_tokens)) + chunk2)
+            labels.extend([-100] * (chunk1_len + 1 + chunk_compress_token_len) + chunk2)
 
-            position_ids.extend(list(range(-chunk1_len - 1, len(self.compress_tokens) + chunk2_len)))
+            position_ids.extend(list(range(-chunk1_len - 1, chunk_compress_token_len + chunk2_len)))
 
             output_sequence.extend(processed_chunk)
 
@@ -866,7 +870,7 @@ class compress_ratio_preprocessor():
             if chunk_counter > self.max_chunk_num:
                 break
 
-            chunk_len = random.ranint(self.single_chunk_size[0], self.single_chunk_size[1])
+            chunk_len = random.randint(self.single_chunk_size[0], self.single_chunk_size[1])
 
             # Condition2: If total chunk length reach the maximum, jump out of chunking.
             if idx + chunk_len > self.max_total_chunk_length:
@@ -945,6 +949,8 @@ class compress_ratio_preprocessor():
             tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids + [self.chunk_end_token]
 
             chunk_compress_token_len = self.round_up_to_10(len(tem_id) * self.compress_ratio)
+            if chunk_compress_token_len > len(self.compress_tokens):
+                chunk_compress_token_len = len(self.compress_tokens)
             chunk_compress_tokens = self.compress_tokens[:chunk_compress_token_len]
 
             segment_ids_1.extend([j+1] * (len(tem_id) + chunk_compress_token_len))
@@ -981,11 +987,11 @@ class compress_ratio_preprocessor():
             "position_ids": position_ids,
         }
 
-    def process_qa_chunk_nopadding_kvlink(
+    def process_qa_compress_kvlink(
         self,
         example
     ):
-        # TODO: Update ratio
+        
         output_sequence = []
         segment_ids_1 = []
         segment_ids_2 = []
@@ -1013,26 +1019,23 @@ class compress_ratio_preprocessor():
             random.shuffle(doc_list)
 
         current_index = sys_len
-
-        chunk_idx = 1
         for j in range(0,10):
-
             title = doc_list[j]['title']
             text = doc_list[j]['text']
-            tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids
+            tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids + [self.chunk_end_token]
 
-            for idx in range(0, len(tem_id), self.chunk_size):
-                chunk_id = tem_id[idx : idx + self.chunk_size]
-                chunk_len = len(chunk_id)
-                
-                segment_ids_1.extend([chunk_idx] * (chunk_len + 1 + len(self.compress_tokens)) + [0] * self.link_token_num)
-                segment_ids_2.extend([1] * (chunk_len + 1) + [2] * len(self.compress_tokens) + [3] * self.link_token_num)
-                labels.extend([-100] * (chunk_len + 1 + len(self.compress_tokens) + self.link_token_num))
-                position_ids.extend(list(range(current_index - chunk_len - 1, current_index + len(self.compress_tokens) + self.link_token_num)))
-                output_sequence.extend(chunk_id + [self.chunk_end_token] + self.compress_tokens + self.link_tokens[chunk_idx-1])
+            chunk_compress_token_len = self.round_up_to_10(len(tem_id) * self.compress_ratio)
+            if chunk_compress_token_len > len(self.compress_tokens):
+                chunk_compress_token_len = len(self.compress_tokens)
+            chunk_compress_tokens = self.compress_tokens[:chunk_compress_token_len]
 
-                current_index += len(self.compress_tokens) + self.link_token_num
-                chunk_idx += 1
+            segment_ids_1.extend([j+1] * (len(tem_id) + chunk_compress_token_len) + [0] * self.link_token_num)
+            segment_ids_2.extend([1] * len(tem_id) + [2] * chunk_compress_token_len + [3] * self.link_token_num)
+            labels.extend([-100] * (len(tem_id) + chunk_compress_token_len + self.link_token_num))
+            position_ids.extend(list(range(current_index - len(tem_id), current_index + chunk_compress_token_len + self.link_token_num)))
+            output_sequence.extend(tem_id + chunk_compress_tokens + self.link_tokens[j])
+
+            current_index += chunk_compress_token_len + self.link_token_num
 
         user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
         user_id = [self.global_end_token] + self.tokenizer(user, add_special_tokens=False).input_ids
@@ -1051,9 +1054,6 @@ class compress_ratio_preprocessor():
         labels.extend(ans_id)
         position_ids.extend(list(range(current_index, current_index + ans_len)))
         output_sequence.extend(ans_id)
-
-        # import ipdb
-        # ipdb.set_trace()
 
         return {
             "input_ids": output_sequence,
