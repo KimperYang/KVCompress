@@ -1,12 +1,6 @@
 """
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 accelerate launch --config_file configs/h100_config.yaml \
-    --main_process_port 25678 block_attn_trainer.py
-
-CUDA_VISIBLE_DEVICES=0 accelerate launch --config_file configs/single_gpu.yaml \
-    --main_process_port 25678 block_attn_trainer.py
-
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 accelerate launch --config_file configs/fsdp.yaml \
-    --main_process_port 25678 block_attn_trainer.py
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 accelerate launch --config_file /data/jingbo_yang/.cache/huggingface/accelerate/step2.yaml \
+--main_process_port 25671 ratio_compress_pretraining_trainer.py
 """
 import os
 from typing import Tuple
@@ -16,29 +10,25 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from functools import partial
 
-from src.data.input_preprocessor import custom_collate_compress, compress_attention_preprocessor
+from src.data.input_preprocessor import custom_collate_compress, compress_ratio_preprocessor
 from src.training.custom_trainer import CustomTrainerCompressAttn
 
 
 def load_from_disk_then_process(
     data_component_name: str,
-    preprocessor: compress_attention_preprocessor,
+    preprocessor: compress_ratio_preprocessor,
 ) -> Tuple[datasets.IterableDataset, datasets.Dataset]:
     """
     load the downloaded data from disk and then pair it with the preprocessor
     """
-    if data_component_name in ["text", "text_mem", "text_compress", "text_multichunk"]:
+    if data_component_name in ["text_singlechunk", "text_multichunk"]:
         data_path = f"dataset_cache/processed/fineweb/{data_component_name}"
-        if data_component_name == "text":
-            preprocessor_fn = preprocessor.process_text
-        elif data_component_name == "text_mem":
-            preprocessor_fn = preprocessor.process_textmem
+        if data_component_name == "text_singlechunk":
+            preprocessor_fn = preprocessor.process_pretraining_singlechunk_completion_compress
+            data_path = "dataset_cache/processed/fineweb/text"
         elif data_component_name == "text_multichunk":
             preprocessor_fn = preprocessor.process_pretraining_multichunk_completion_compress
             data_path = "dataset_cache/processed/fineweb/text_min2048"
-        elif data_component_name == "text_compress":
-            preprocessor_fn = preprocessor.process_pretraining_completion_compress
-            data_path = "dataset_cache/processed/fineweb/text"
         else:
             raise NotImplementedError()
         remove_columns = [
@@ -46,18 +36,26 @@ def load_from_disk_then_process(
             "file_path", "language", "language_score", "token_count",
         ]
         num_shards = 512
-        if data_component_name in ["text_mem", "text_inst"]:
-            remove_columns.append("num_tokens")
+    if data_component_name in ["qa_compress", "qa_compress_link"]:
+        data_path = "dataset_cache/processed/compress_qa"
+        if data_component_name == "qa_compress":
+            preprocessor_fn = preprocessor.process_qa_compress
+        elif data_component_name == "qa_compress_link":
+            preprocessor_fn = preprocessor.process_qa_compress_kvlink
+        else:
+            raise NotImplementedError()
+        remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
+        num_shards = 512
     else:
         raise NotImplementedError()
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
 
-    streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
-    # streaming_train_dataset = data_component["train"]
+    # streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
+    streaming_train_dataset = data_component["train"]
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        # num_proc=16,
+        num_proc=16,
         batched=False,
     )
 
@@ -75,40 +73,41 @@ def load_from_disk_then_process(
 
 def main():
     batch_size_per_device = 4
-    compress_tokens = list(range(128011, 128061))
+    compress_tokens = list(range(128011, 128211))
+    ratio = 0.5
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_pretrain_completion/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/ratio_compress_pretrain_mix/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/compress_pretrain_completion/checkpoint-20000",
+        "training_res/ratio_compress_pretrain_mix/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
     )
 
-    preprocessor = compress_attention_preprocessor(
+    preprocessor = compress_ratio_preprocessor(
         tokenizer=global_tokenizer,
         max_len=4096,
         compress_tokens=compress_tokens,
-        chunk_size=100,
+        compress_ratio=ratio,
         chunk_end_token=128253,
-        do_shuffle=True
+        do_shuffle=True,
+        link_token_num = 1,
+        max_chunk_num = 10,
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa_compress", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/compress_pretrain_multichunk20k",
+        output_dir=f"training_res/ratio_compress_qa_mix",
         report_to="wandb",
-        run_name=f"compress_{len(compress_tokens)}_pretrain_multichunk20k_bsz{batch_size_per_device}_5e-6",
+        run_name=f"ratio_compress_qa_{int(len(compress_tokens) * 100)}_mix",
         per_device_train_batch_size= batch_size_per_device,
-        # num_train_epochs=2,
-        max_steps=20000,
+        num_train_epochs=2,
         logging_dir="training_res/logs",
         logging_steps=10,
-        save_steps=4000,
         gradient_accumulation_steps=2,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
@@ -116,13 +115,10 @@ def main():
         learning_rate=5e-6,
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
-        evaluation_strategy="steps",  # Add this line
-        eval_steps=1000,
+        evaluation_strategy="epoch",  # Add this line
         gradient_checkpointing=True,
         save_total_limit=1,
-        # overwrite_output_dir = False
         remove_unused_columns=False,
-        # split_batches=True,
         dispatch_batches=False,
         eval_on_start=True,
         seed = 42

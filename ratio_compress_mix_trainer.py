@@ -1,12 +1,6 @@
 """
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 accelerate launch --config_file configs/h100_config.yaml \
-    --main_process_port 25678 block_attn_trainer.py
-
-CUDA_VISIBLE_DEVICES=0 accelerate launch --config_file configs/single_gpu.yaml \
-    --main_process_port 25678 block_attn_trainer.py
-
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 accelerate launch --config_file configs/fsdp.yaml \
-    --main_process_port 25678 block_attn_trainer.py
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 accelerate launch --config_file /data/jingbo_yang/.cache/huggingface/accelerate/step2.yaml \
+--main_process_port 25671 ratio_compress_mix_trainer.py
 """
 import os
 from typing import Tuple
@@ -16,29 +10,25 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from functools import partial
 
-from src.data.input_preprocessor import custom_collate_compress, compress_attention_preprocessor
+from src.data.input_preprocessor import custom_collate_compress, compress_ratio_preprocessor
 from src.training.custom_trainer import CustomTrainerCompressAttn
 
 
 def load_from_disk_then_process(
     data_component_name: str,
-    preprocessor: compress_attention_preprocessor,
+    preprocessor: compress_ratio_preprocessor,
 ) -> Tuple[datasets.IterableDataset, datasets.Dataset]:
     """
     load the downloaded data from disk and then pair it with the preprocessor
     """
-    if data_component_name in ["text", "text_mem", "text_compress", "text_multichunk"]:
+    if data_component_name in ["text_singlechunk", "text_multichunk"]:
         data_path = f"dataset_cache/processed/fineweb/{data_component_name}"
-        if data_component_name == "text":
-            preprocessor_fn = preprocessor.process_text
-        elif data_component_name == "text_mem":
-            preprocessor_fn = preprocessor.process_textmem
+        if data_component_name == "text_singlechunk":
+            preprocessor_fn = preprocessor.process_pretraining_singlechunk_completion_compress
+            data_path = "dataset_cache/processed/fineweb/text"
         elif data_component_name == "text_multichunk":
             preprocessor_fn = preprocessor.process_pretraining_multichunk_completion_compress
             data_path = "dataset_cache/processed/fineweb/text_min2048"
-        elif data_component_name == "text_compress":
-            preprocessor_fn = preprocessor.process_pretraining_completion_compress
-            data_path = "dataset_cache/processed/fineweb/text"
         else:
             raise NotImplementedError()
         remove_columns = [
@@ -46,8 +36,6 @@ def load_from_disk_then_process(
             "file_path", "language", "language_score", "token_count",
         ]
         num_shards = 512
-        if data_component_name in ["text_mem", "text_inst"]:
-            remove_columns.append("num_tokens")
     else:
         raise NotImplementedError()
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
@@ -75,34 +63,48 @@ def load_from_disk_then_process(
 
 def main():
     batch_size_per_device = 4
-    compress_tokens = list(range(128011, 128061))
+    compress_tokens = list(range(128011, 128211))
+    ratio = 0.5
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_pretrain_completion/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/compress_pretrain_completion/checkpoint-20000",
+        "meta-llama/Llama-3.2-1B",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
     )
 
-    preprocessor = compress_attention_preprocessor(
+    preprocessor = compress_ratio_preprocessor(
         tokenizer=global_tokenizer,
         max_len=4096,
         compress_tokens=compress_tokens,
-        chunk_size=100,
+        compress_ratio=ratio,
         chunk_end_token=128253,
         do_shuffle=True
     )
+    
+    singlechunk_train, singlechunk_eval = load_from_disk_then_process("text_singlechunk", preprocessor)
+    multichunk_train, multichunk_eval = load_from_disk_then_process("text_multichunk", preprocessor)
 
-    train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk", preprocessor)
+    train_dataset = datasets.interleave_datasets(
+        [singlechunk_train, multichunk_train],
+        probabilities=[0.50, 0.50],
+        seed=42,
+        stopping_strategy="all_exhausted",
+    )
+
+    eval_dataset = datasets.DatasetDict({
+        "single_chunk": singlechunk_eval,
+        "multi_chunk": multichunk_eval,
+    })
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/compress_pretrain_multichunk20k",
+        output_dir=f"training_res/ratio_compress_pretrain_mix",
         report_to="wandb",
-        run_name=f"compress_{len(compress_tokens)}_pretrain_multichunk20k_bsz{batch_size_per_device}_5e-6",
+        run_name=f"ratio_compress_{int(len(compress_tokens) * 100)}_pretrain_mix",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=2,
         max_steps=20000,
