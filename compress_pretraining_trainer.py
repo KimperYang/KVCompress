@@ -100,9 +100,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/compress_chunk_pretrain_multichunk30k",
+        output_dir="training_res/compress_chunk_pretrain_multichunk20k",
         report_to="wandb",
-        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk30k_bsz{batch_size_per_device}_5e-6",
+        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk20k_bsz{batch_size_per_device}_5e-6",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=2,
         max_steps=20000,
