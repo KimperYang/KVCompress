@@ -67,7 +67,7 @@ def load_from_disk_then_process(
         remove_columns=remove_columns,
         num_proc=16,
         batched=False,
-        load_from_cache_file=False
+        load_from_cache_file=True
     )
 
     return training_data, eval_data
@@ -77,9 +77,9 @@ def main():
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_pretrain_completion/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/compress_pretrain_completion/checkpoint-20000",
+        "meta-llama/Llama-3.2-1B",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -100,9 +100,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/compress_pretrain_multichunk20k",
+        output_dir=f"training_res/compress_chunk_pretrain_multichunk30k",
         report_to="wandb",
-        run_name=f"compress_{len(compress_tokens)}_pretrain_multichunk20k_bsz{batch_size_per_device}_5e-6",
+        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk30k_bsz{batch_size_per_device}_5e-6",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=2,
         max_steps=20000,

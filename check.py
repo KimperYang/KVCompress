@@ -165,3 +165,15 @@ print(mask)
 #     # num_proc=16,
 #     batched=False,
 # )
+import random
+
+seq_len = 4000
+max_chunk_num = 20
+max_prefix_length = random.randint(0.2 * seq_len, 0.8 * seq_len)
+chunk_num = random.randint(1, max_chunk_num)
+total_chunk_len = 0
+for _ in range(chunk_num):
+    chunk_len = random.randint(20, 400)
+    total_chunk_len += chunk_len
+    if total_chunk_len > max_prefix_length:
+        break
