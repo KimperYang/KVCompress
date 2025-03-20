@@ -1,5 +1,5 @@
 conda activate kvm
-cd /data/jingbo_yang/KVCompress
+# cd /data/jingbo_yang/KVCompress
 
 CUDA_VISIBLE_DEVICES=0 python scripts/evaluation/chunk_nopadding/tqa_eval.py --run "compress_chunk_qa_nopadding_multichunk20k_epoch2" --ckpt 1122 &
 CUDA_VISIBLE_DEVICES=1 python scripts/evaluation/chunk_nopadding/hqa2_eval.py --run "compress_chunk_qa_nopadding_multichunk20k_epoch2" --ckpt 1122 &
