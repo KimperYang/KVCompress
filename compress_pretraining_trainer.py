@@ -108,8 +108,8 @@ def main():
         max_steps=20000,
         logging_dir="training_res/logs",
         logging_steps=10,
-        save_steps=4000,
-        gradient_accumulation_steps=2,
+        save_steps=5000,
+        gradient_accumulation_steps=1,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
@@ -117,14 +117,14 @@ def main():
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
         evaluation_strategy="steps",  # Add this line
-        eval_steps=1000,
+        eval_steps=5000,
         gradient_checkpointing=True,
         save_total_limit=1,
         # overwrite_output_dir = False
         remove_unused_columns=False,
         # split_batches=True,
         dispatch_batches=False,
-        eval_on_start=True,
+        eval_on_start=False,
         seed = 42
     )
 

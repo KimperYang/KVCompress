@@ -50,13 +50,13 @@ def main(argv):
         examples["num_tokens"] = [len(x) for x in token_counts]
         return examples
 
-    dataset_with_token_num = dataset.map(tokenize_texts, batched=True, num_proc=192)
+    dataset_with_token_num = dataset.map(tokenize_texts, batched=True, num_proc=48)
 
     def filter_fn(examples: Dict[str, List[Any]]):
         token_counts = examples["num_tokens"]
         return [x > min_length for x in token_counts]
     
-    filtered_dataset = dataset_with_token_num.filter(filter_fn, batched=True, num_proc=192)
+    filtered_dataset = dataset_with_token_num.filter(filter_fn, batched=True, num_proc=48)
     filtered_dataset = filtered_dataset.remove_columns("num_tokens")
 
     # text = dataset.shuffle(seed=random_seed).select(range(0, num_samples//2))
@@ -67,7 +67,7 @@ def main(argv):
 
     print("text:", text)
     shards = {'train': 128, 'test': 4}
-    text.save_to_disk(f"dataset_cache/processed/fineweb/text_min{min_length}", num_shards=shards, num_proc=128)
+    text.save_to_disk(f"dataset_cache/processed/fineweb/text_min{min_length}", num_shards=shards, num_proc=96)
 
 if __name__ == "__main__":
     set_args()
