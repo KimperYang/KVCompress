@@ -14,7 +14,6 @@ from typing import Tuple
 import datasets
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
-from functools import partial
 
 from src.data.input_preprocessor import custom_collate_compress, compress_attention_preprocessor
 from src.training.custom_trainer import CustomTrainerCompressAttn
@@ -30,10 +29,10 @@ def load_from_disk_then_process(
     if data_component_name in ["text", "text_compress"]:
         if data_component_name == "text":
             preprocessor_fn = preprocessor.process_pretraining
-            data_path = "/data/jingbo_yang/KVCompress/dataset_cache/processed/fineweb/text"
+            data_path = "dataset_cache/processed/fineweb/text"
         elif data_component_name == "text_compress":
             preprocessor_fn = preprocessor.process_pretraining_instruct_compress
-            data_path = "/data/jingbo_yang/KVCompress/dataset_cache/processed/fineweb/text_compress"
+            data_path = "dataset_cache/processed/fineweb/text_compress"
         else:
             raise NotImplementedError()
         remove_columns = [
@@ -84,9 +83,9 @@ def main():
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_pretrain_multichunk10k/checkpoint-10000")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_chunk_pretrain_multichunk20k/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/compress_pretrain_multichunk10k/checkpoint-10000",
+        "training_res/compress_chunk_pretrain_multichunk20k/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -101,32 +100,15 @@ def main():
         do_shuffle=True
     )
 
-    # train_dataset, eval_dataset = load_from_disk_then_process("qa_compress", preprocessor)
-
-    # qa_compress_train, qa_compress_eval = load_from_disk_then_process("qa_compress", preprocessor)
-    # qa_train, qa_eval = load_from_disk_then_process("qa", preprocessor)
-
-    # train_dataset = datasets.interleave_datasets(
-    #     [qa_compress_train, qa_train],
-    #     probabilities=[0.50, 0.50],
-    #     seed=42,
-    #     stopping_strategy="all_exhausted",
-    # )
-
-    # eval_dataset = datasets.DatasetDict({
-    #     "qa_compress": qa_compress_eval,
-    #     "qa_eval": qa_eval
-    # })
-
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_link", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/compress_qa_nopadding_kvlink_stage3_10k_epoch2",
+        output_dir="training_res/compress_chunk_qa_nopadding_multichunk20k_epoch2",
         report_to="wandb",
-        run_name=f"compress_{len(compress_tokens)}_qa_nopadding_kvlink_stage3_10k_epoch2_bsz{batch_size_per_device}_5e-6",
+        run_name=f"compress_chunk_{len(compress_tokens)}_qa_nopadding_multichunk20k_epoch2_bsz{batch_size_per_device}",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         # max_steps=2500,

@@ -121,8 +121,8 @@ from src.data.input_preprocessor import compress_ratio_preprocessor
 #     for k, v in result.items():
 #         print(f"{k} = {v}")
 
-seg_id_1 = torch.tensor([[1,1,2,2,0,4,4]])
-seg_id_2 = torch.tensor([[3,3,3,3,3,3,3]])
+seg_id_1 = torch.tensor([[1,1,1,2,2,2,0,0]])
+seg_id_2 = torch.tensor([[1,1,2,1,1,2,3,3]])
 mask = make_segment_mask_with_two_rules(
     source_segments_1=seg_id_1,
     target_segments_1=seg_id_1,
