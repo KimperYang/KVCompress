@@ -20,4 +20,5 @@ conda activate kvm
 cd /data/jingbo_yang/KVCompress
 
 
-accelerate launch --config_file /data/jingbo_yang/.cache/huggingface/accelerate/step2.yaml --main_process_port 25671 compress_pretraining_trainer.py
+# accelerate launch --config_file /data/jingbo_yang/.cache/huggingface/accelerate/step2.yaml --main_process_port 25671 compress_pretraining_trainer.py
+accelerate launch --config_file config/step2.yaml --main_process_port 25671 compress_pretraining_trainer.py
