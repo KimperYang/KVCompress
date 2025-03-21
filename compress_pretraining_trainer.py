@@ -71,7 +71,7 @@ def load_from_disk_then_process(
 
 
 def main():
-    batch_size_per_device = 4
+    batch_size_per_device = 8
     compress_tokens = list(range(128011, 128061))
 
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
