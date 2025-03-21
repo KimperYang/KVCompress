@@ -56,7 +56,6 @@ def load_from_disk_then_process(
         remove_columns=remove_columns,
         num_proc=96,
         batched=True,
-        load_from_cache_file=True
     )
 
     eval_dataset = data_component["test"]
@@ -72,16 +71,9 @@ def load_from_disk_then_process(
 
 
 def main():
-    batch_size_per_device = 8
     compress_tokens = list(range(128011, 128061))
 
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
-    global_model = AutoModelForCausalLM.from_pretrained(
-        "meta-llama/Llama-3.2-1B",
-        torch_dtype=torch.bfloat16,
-        attn_implementation='sdpa',
-        # use_flash_attention_2=True,
-    )
 
     preprocessor = compress_attention_preprocessor(
         tokenizer=global_tokenizer,
@@ -92,50 +84,7 @@ def main():
         do_shuffle=True
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk2", preprocessor)
-
-    os.environ["WANDB_PROJECT"]="kvcompress"
-    os.environ["WANDB_WATCH"]="false"
-
-    training_args = TrainingArguments(
-        output_dir="training_res/compress_chunk_pretrain_multichunk30k",
-        report_to="wandb",
-        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk30k",
-        per_device_train_batch_size= batch_size_per_device,
-        # num_train_epochs=2,
-        max_steps=30000,
-        logging_dir="training_res/logs",
-        logging_steps=10,
-        save_steps=5000,
-        gradient_accumulation_steps=1,
-        warmup_ratio=0.1,
-        lr_scheduler_type='cosine',
-        bf16=True,
-        learning_rate=5e-6,
-        do_eval=True,
-        per_device_eval_batch_size = batch_size_per_device,
-        evaluation_strategy="steps",  # Add this line
-        eval_steps=5000,
-        gradient_checkpointing=True,
-        save_total_limit=1,
-        # overwrite_output_dir = False
-        remove_unused_columns=False,
-        # split_batches=True,
-        dispatch_batches=False,
-        eval_on_start=True,
-        seed = 42
-    )
-
-    trainer = CustomTrainerCompressAttn(
-        model=global_model,
-        tokenizer=global_tokenizer,
-        args=training_args,
-        train_dataset = train_dataset,
-        eval_dataset = eval_dataset,
-        data_collator = custom_collate_compress
-    )
-
-    trainer.train()
+    load_from_disk_then_process("text_multichunk2", preprocessor)
 
 if __name__ == "__main__":
     main()
