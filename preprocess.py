@@ -50,7 +50,7 @@ def load_from_disk_then_process(
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
 
     # streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
-    streaming_train_dataset = data_component["train"]
+    streaming_train_dataset = data_component["train"][:3200000]
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
@@ -83,7 +83,11 @@ def main():
         do_shuffle=True
     )
 
-    load_from_disk_then_process("text_multichunk2", preprocessor)
+    train_set, test_set = load_from_disk_then_process("text_multichunk2", preprocessor)
+    dataset = {'train': train_set, 'test': test_set}
+    shards = {'train': 128, 'test': 4}
+    dataset.save_to_disk("dataset_cache/processed/fineweb/mapped_text_multichunk2_50", num_shards=shards, num_proc=128)
+
 
 if __name__ == "__main__":
     main()
