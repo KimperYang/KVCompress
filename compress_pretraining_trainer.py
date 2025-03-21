@@ -27,17 +27,16 @@ def load_from_disk_then_process(
     """
     load the downloaded data from disk and then pair it with the preprocessor
     """
-    if data_component_name in ["text", "text_mem", "text_compress", "text_multichunk"]:
+    if data_component_name in ["text_singlechunk", "text_multichunk", "text_multichunk2"]:
         data_path = f"dataset_cache/processed/fineweb/{data_component_name}"
-        if data_component_name == "text":
-            preprocessor_fn = preprocessor.process_text
-        elif data_component_name == "text_mem":
-            preprocessor_fn = preprocessor.process_textmem
-        elif data_component_name == "text_multichunk":
+        if data_component_name == "text_multichunk":
             preprocessor_fn = preprocessor.process_pretraining_multichunk_completion_compress
             data_path = "dataset_cache/processed/fineweb/text_min2048"
-        elif data_component_name == "text_compress":
-            preprocessor_fn = preprocessor.process_pretraining_completion_compress
+        elif data_component_name == "text_singlechunk":
+            preprocessor_fn = preprocessor.process_pretraining_singlechunk_completion_compress
+            data_path = "dataset_cache/processed/fineweb/text"
+        elif data_component_name == "text_multichunk2":
+            preprocessor_fn = preprocessor.process_pretraining_multichunk2_completion_compress
             data_path = "dataset_cache/processed/fineweb/text"
         else:
             raise NotImplementedError()
@@ -46,27 +45,25 @@ def load_from_disk_then_process(
             "file_path", "language", "language_score", "token_count",
         ]
         num_shards = 512
-        if data_component_name in ["text_mem", "text_inst"]:
-            remove_columns.append("num_tokens")
     else:
         raise NotImplementedError()
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
 
-    streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
-    # streaming_train_dataset = data_component["train"]
+    # streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
+    streaming_train_dataset = data_component["train"]
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        # num_proc=16,
-        batched=False,
+        num_proc=96,
+        batched=True,
     )
 
     eval_dataset = data_component["test"]
     eval_data = eval_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        num_proc=16,
-        batched=False,
+        num_proc=96,
+        batched=True,
         load_from_cache_file=True
     )
 
@@ -94,22 +91,22 @@ def main():
         do_shuffle=True
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk2", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/compress_chunk_pretrain_multichunk20k",
+        output_dir="training_res/compress_chunk_pretrain_multichunk30k",
         report_to="wandb",
-        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk20k_bsz{batch_size_per_device}_5e-6",
+        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk30k",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=2,
-        max_steps=20000,
+        max_steps=30000,
         logging_dir="training_res/logs",
         logging_steps=10,
         save_steps=5000,
-        gradient_accumulation_steps=1,
+        gradient_accumulation_steps=2,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
