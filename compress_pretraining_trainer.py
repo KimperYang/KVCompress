@@ -106,7 +106,7 @@ def main():
         logging_dir="training_res/logs",
         logging_steps=10,
         save_steps=5000,
-        gradient_accumulation_steps=2,
+        gradient_accumulation_steps=1,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
