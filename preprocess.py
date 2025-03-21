@@ -63,8 +63,7 @@ def load_from_disk_then_process(
         preprocessor_fn,
         remove_columns=remove_columns,
         num_proc=96,
-        batched=True,
-        load_from_cache_file=True
+        batched=True
     )
 
     return training_data, eval_data
