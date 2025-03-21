@@ -332,17 +332,79 @@ class compress_attention_preprocessor():
         labels.extend([-100] + remaining_ids)
         position_ids.extend(list(range(current_position, current_position + 1 + remaining_len)))
 
-        print(type(output_sequence), type(segment_ids_1), type(segment_ids_2), type(labels), type(position_ids))
-        if type(output_sequence) != list or type(segment_ids_1) != list or type(segment_ids_2) != list or type(labels) != list or type(position_ids) != list:
-            import ipdb
-            ipdb.set_trace()
-
         return {
             "input_ids": output_sequence,
             "segment_ids_1": segment_ids_1,
             "segment_ids_2": segment_ids_2,
             "labels": labels,
             "position_ids": position_ids,
+        }
+
+    def process_pretraining_multichunk2_batch(
+        self,
+        example
+    ):
+        all_input_ids = []
+        all_segment_ids_1 = []
+        all_segment_ids_2 = []
+        all_labels = []
+        all_position_ids = []
+
+        for text in example['text']:
+            text_tokens = self.tokenizer(text, add_special_tokens=False).input_ids[:self.max_len]
+            output_sequence = []
+            segment_ids_1 = []
+            segment_ids_2 = []
+            labels = []
+            position_ids = []
+            total_chunks = math.floor(len(text_tokens) / self.chunk_size)
+
+            chunk_num = random.randint(1, min(total_chunks - 1, 30))
+            remaining_ids = text_tokens[chunk_num * self.chunk_size:]
+            remaining_len = len(remaining_ids)
+
+            bos_tokens = self.tokenizer("").input_ids
+            output_sequence.extend(bos_tokens + [self.global_start_token])
+            segment_ids_1.extend([0]*2)
+            segment_ids_2.extend([3]*2)
+            labels.extend([-100]*2)
+            position_ids.extend([0,1])
+
+            current_position = 2
+            for i in range(chunk_num):
+                chunk_counter = i+1
+                chunk_ids = text_tokens[i * self.chunk_size : i * self.chunk_size + self.chunk_size] + [self.chunk_end_token]
+                chunk_len = len(chunk_ids)
+
+                segment_ids_1.extend([chunk_counter] * (chunk_len + len(self.compress_tokens)))
+
+                segment_ids_2.extend([1] * chunk_len + [2] * len(self.compress_tokens))
+
+                labels.extend([-100] * (chunk_len + len(self.compress_tokens)))
+
+                position_ids.extend(list(range(current_position - chunk_len, current_position + len(self.compress_tokens))))
+                current_position += len(self.compress_tokens)
+
+                output_sequence.extend(chunk_ids + self.compress_tokens)
+
+            output_sequence.extend([self.global_end_token] + remaining_ids)
+            segment_ids_1.extend([0] * (1 + remaining_len))
+            segment_ids_2.extend([3] * (1 + remaining_len))
+            labels.extend([-100] + remaining_ids)
+            position_ids.extend(list(range(current_position, current_position + 1 + remaining_len)))
+
+            all_input_ids.append(output_sequence)
+            all_segment_ids_1.append(segment_ids_1)
+            all_segment_ids_2.append(segment_ids_2)
+            all_labels.append(labels)
+            all_position_ids.append(position_ids)
+
+        return {
+            "input_ids": all_input_ids,
+            "segment_ids_1": all_segment_ids_1,
+            "segment_ids_2": all_segment_ids_2,
+            "labels": all_labels,
+            "position_ids": all_position_ids,
         }
 
     def process_qa_compress(

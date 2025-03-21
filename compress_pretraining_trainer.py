@@ -36,7 +36,7 @@ def load_from_disk_then_process(
             preprocessor_fn = preprocessor.process_pretraining_singlechunk_completion_compress
             data_path = "dataset_cache/processed/fineweb/text_min500"
         elif data_component_name == "text_multichunk2":
-            preprocessor_fn = preprocessor.process_pretraining_multichunk2_completion_compress
+            preprocessor_fn = preprocessor.process_pretraining_multichunk2_batch
             data_path = "dataset_cache/processed/fineweb/text_min500"
         else:
             raise NotImplementedError()
