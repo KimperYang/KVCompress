@@ -34,10 +34,10 @@ def load_from_disk_then_process(
             data_path = "dataset_cache/processed/fineweb/text_min2048"
         elif data_component_name == "text_singlechunk":
             preprocessor_fn = preprocessor.process_pretraining_singlechunk_completion_compress
-            data_path = "dataset_cache/processed/fineweb/text"
+            data_path = "dataset_cache/processed/fineweb/text_min500"
         elif data_component_name == "text_multichunk2":
             preprocessor_fn = preprocessor.process_pretraining_multichunk2_completion_compress
-            data_path = "dataset_cache/processed/fineweb/text"
+            data_path = "dataset_cache/processed/fineweb/text_min500"
         else:
             raise NotImplementedError()
         remove_columns = [
