@@ -332,6 +332,11 @@ class compress_attention_preprocessor():
         labels.extend([-100] + remaining_ids)
         position_ids.extend(list(range(current_position, current_position + 1 + remaining_len)))
 
+        print(type(output_sequence), type(segment_ids_1), type(segment_ids_2), type(labels), type(position_ids))
+        if type(output_sequence) != list or type(segment_ids_1) != list or type(segment_ids_2) != list or type(labels) != list or type(position_ids) != list:
+            import ipdb
+            ipdb.set_trace()
+
         return {
             "input_ids": output_sequence,
             "segment_ids_1": segment_ids_1,
