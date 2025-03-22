@@ -72,7 +72,7 @@ def load_from_disk_then_process(
 
 
 def main():
-    batch_size_per_device = 8
+    batch_size_per_device = 4
     compress_tokens = list(range(128011, 128061))
 
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
@@ -107,7 +107,7 @@ def main():
         logging_dir="training_res/logs",
         logging_steps=10,
         save_steps=5000,
-        gradient_accumulation_steps=1,
+        gradient_accumulation_steps=2,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
