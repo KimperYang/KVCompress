@@ -50,7 +50,7 @@ def load_from_disk_then_process(
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
 
     # streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
-    streaming_train_dataset = data_component["train"]
+    streaming_train_dataset = data_component["train"].select(range(0, 3200000))
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
