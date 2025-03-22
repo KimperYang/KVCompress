@@ -106,7 +106,7 @@ def main():
         max_steps=30000,
         logging_dir="training_res/logs",
         logging_steps=10,
-        save_steps=5000,
+        save_steps=1000,
         gradient_accumulation_steps=2,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
