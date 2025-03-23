@@ -56,7 +56,7 @@ def load_from_disk_then_process(
         preprocessor_fn,
         remove_columns=remove_columns,
         num_proc=96,
-        batched=True,
+        batched=False,
     )
 
     eval_dataset = data_component["test"]
@@ -64,7 +64,7 @@ def load_from_disk_then_process(
         preprocessor_fn,
         remove_columns=remove_columns,
         num_proc=96,
-        batched=True
+        batched=False
     )
 
     return training_data, eval_data
