@@ -75,9 +75,9 @@ def main():
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_chunk_pretrain_singlechunk20k/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/compress_chunk_pretrain_singlechunk20k/checkpoint-20000",
+        "meta-llama/Llama-3.2-1B",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -100,12 +100,12 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/compress_chunk_pretrain_multichunk20k_stage2",
+        output_dir="training_res/compress_chunk_pretrain_multichunk20k",
         report_to="wandb",
-        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk20k_stage2",
+        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk20k",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=2,
-        max_steps=30000,
+        max_steps=20000,
         logging_dir="training_res/logs",
         logging_steps=10,
         save_steps=1000,
@@ -119,7 +119,7 @@ def main():
         evaluation_strategy="steps",  # Add this line
         eval_steps=5000,
         gradient_checkpointing=True,
-        save_total_limit=2,
+        save_total_limit=1,
         # overwrite_output_dir = False
         remove_unused_columns=False,
         # split_batches=True,

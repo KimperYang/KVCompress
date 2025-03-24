@@ -64,7 +64,7 @@ def load_from_disk_then_process(
 def main():
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128211))
-    ratio = 0.8
+    ratio = 0.5
 
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
@@ -81,7 +81,7 @@ def main():
         compress_ratio=ratio,
         chunk_end_token=128253,
         do_shuffle=True,
-        max_chunk_num=10,
+        max_chunk_num=20,
 
     )
 
