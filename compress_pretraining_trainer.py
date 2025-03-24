@@ -75,9 +75,9 @@ def main():
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_chunk_pretrain_singlechunk20k/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "meta-llama/Llama-3.2-1B",
+        "training_res/compress_chunk_pretrain_singlechunk20k/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -92,15 +92,17 @@ def main():
         do_shuffle=True
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk2", preprocessor)
+    # train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk2", preprocessor)
+    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_50_chunkcomp")
+    train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/compress_chunk_pretrain_multichunk30k",
+        output_dir="training_res/compress_chunk_pretrain_multichunk20k_stage2",
         report_to="wandb",
-        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk30k",
+        run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk20k_stage2",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=2,
         max_steps=30000,
@@ -117,7 +119,7 @@ def main():
         evaluation_strategy="steps",  # Add this line
         eval_steps=5000,
         gradient_checkpointing=True,
-        save_total_limit=1,
+        save_total_limit=2,
         # overwrite_output_dir = False
         remove_unused_columns=False,
         # split_batches=True,
@@ -135,7 +137,8 @@ def main():
         data_collator = custom_collate_compress
     )
 
-    trainer.train(resume_from_checkpoint = True)
+    trainer.train()
+    # trainer.train(resume_from_checkpoint = True)
 
 if __name__ == "__main__":
     main()
