@@ -124,7 +124,7 @@ def main():
         remove_unused_columns=False,
         # split_batches=True,
         dispatch_batches=False,
-        eval_on_start=True,
+        eval_on_start=False,
         seed = 42
     )
 
