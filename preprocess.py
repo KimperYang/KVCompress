@@ -30,7 +30,7 @@ def load_from_disk_then_process(
     if data_component_name in ["text_singlechunk", "text_multichunk", "text_multichunk2"]:
         data_path = f"dataset_cache/processed/fineweb/{data_component_name}"
         if data_component_name == "text_multichunk":
-            preprocessor_fn = preprocessor.process_pretraining_multichunk_batch
+            preprocessor_fn = preprocessor.process_pretraining_multichunk_completion_compress
             data_path = "dataset_cache/processed/fineweb/text_min2048"
         elif data_component_name == "text_singlechunk":
             preprocessor_fn = preprocessor.process_pretraining_singlechunk_completion_compress
@@ -56,7 +56,7 @@ def load_from_disk_then_process(
         preprocessor_fn,
         remove_columns=remove_columns,
         num_proc=96,
-        batched=True,
+        batched=False
     )
 
     eval_dataset = data_component["test"]
@@ -64,7 +64,7 @@ def load_from_disk_then_process(
         preprocessor_fn,
         remove_columns=remove_columns,
         num_proc=96,
-        batched=True
+        batched=False
     )
 
     return training_data, eval_data
