@@ -800,7 +800,7 @@ def custom_collate_compress(batch):
         length_list = [len(x['input_ids']) for x in batch]
 
         max_length = max(length_list)
-
+        print(max_length)
         for item in batch:
 
             seq_length = len(item['input_ids'])
