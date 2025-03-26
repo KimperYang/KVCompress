@@ -87,7 +87,7 @@ def main():
     train_set, test_set = load_from_disk_then_process("text_multichunk", preprocessor)
     dataset = datasets.DatasetDict({'train': train_set, 'test': test_set})
     shards = {'train': 128, 'test': 4}
-    dataset.save_to_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_50_chunkcomp", num_shards=shards, num_proc=128)
+    dataset.save_to_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_50_chunkcomp_limited", num_shards=shards, num_proc=128)
 
 
 if __name__ == "__main__":

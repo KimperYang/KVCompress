@@ -279,11 +279,11 @@ class compress_attention_preprocessor():
         position_ids.extend(list(range(current_position, current_position + 1 + remaining_len)))
 
         return {
-            "input_ids": output_sequence,
-            "segment_ids_1": segment_ids_1,
-            "segment_ids_2": segment_ids_2,
-            "labels": labels,
-            "position_ids": position_ids,
+            "input_ids": output_sequence[:self.max_len],
+            "segment_ids_1": segment_ids_1[:self.max_len],
+            "segment_ids_2": segment_ids_2[:self.max_len],
+            "labels": labels[:self.max_len],
+            "position_ids": position_ids[:self.max_len],
         }
 
     def process_pretraining_multichunk_batch(
@@ -800,7 +800,6 @@ def custom_collate_compress(batch):
         length_list = [len(x['input_ids']) for x in batch]
 
         max_length = max(length_list)
-        print(max_length)
         for item in batch:
 
             seq_length = len(item['input_ids'])
