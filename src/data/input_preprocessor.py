@@ -819,7 +819,6 @@ def custom_collate_compress(batch):
 
             padded_position_ids = item['position_ids'] + [0] * residual
             position_ids.append(padded_position_ids)
-        print(max_length)
         return {
             "input_ids": torch.LongTensor(input_ids),
             "segment_ids_1": torch.LongTensor(segment_ids_1),

@@ -18,5 +18,5 @@ class CustomTrainerCompressAttn(Trainer):
             add_causal_lm_mask=True     # No causal mask for clarity
         )
         outputs = model(input_ids = inputs['input_ids'], attention_mask = mask.unsqueeze(1), labels = inputs['labels'], position_ids = inputs['position_ids'])
-        torch.cuda.empty_cache()
+        # torch.cuda.empty_cache()
         return (outputs.loss, outputs) if return_outputs else outputs.loss
