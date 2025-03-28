@@ -85,21 +85,23 @@ def main():
 
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk", preprocessor)
+    # train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk", preprocessor)
+    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_kvlink_50_ratiocomp")
+    train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/ratio_{int(ratio * 100)}_compress_multichunk",
+        output_dir=f"training_res/ratio_{int(ratio * 100)}_compress_multichunk20k_kvlink",
         report_to="wandb",
-        run_name=f"ratio_compress_{int(ratio * 100)}_multichunk20k",
+        run_name=f"ratio_compress_{int(ratio * 100)}_multichunk20k_kvlink",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=2,
-        max_steps=10000,
+        max_steps=20000,
         logging_dir="training_res/logs",
         logging_steps=10,
-        save_steps=4000,
+        save_steps=1000,
         gradient_accumulation_steps=2,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
@@ -108,14 +110,14 @@ def main():
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
         evaluation_strategy="steps",  # Add this line
-        eval_steps=1000,
+        eval_steps=5000,
         gradient_checkpointing=True,
         save_total_limit=1,
         # overwrite_output_dir = False
         remove_unused_columns=False,
         # split_batches=True,
         dispatch_batches=False,
-        eval_on_start=True,
+        eval_on_start=False,
         seed = 42
     )
 

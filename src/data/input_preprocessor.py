@@ -1103,6 +1103,84 @@ class compress_ratio_preprocessor():
             "position_ids": position_ids,
         }
 
+    def process_pretraining_multichunk_kvlink_completion_compress(
+        self,
+        example
+    ):
+        # data used for this processing should contain at least self.max_total_chunk_length tokens
+        text_tokens = self.tokenizer(example['text'], add_special_tokens=False).input_ids[:self.max_len]
+
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+
+        bos_tokens = self.tokenizer("").input_ids
+        output_sequence.extend(bos_tokens + [self.global_start_token])
+        segment_ids_1.extend([0]*2)
+        segment_ids_2.extend([3]*2)
+        labels.extend([-100]*2)
+        position_ids.extend([0,1])
+
+        current_position = 2
+        chunk_counter = 0
+        idx = 0
+        while True:
+            chunk_counter += 1
+            # Condition1: If the number of chunks reach the maximum, jump out of chunking.
+            if chunk_counter > self.max_chunk_num:
+                break
+
+            chunk_len = random.randint(self.single_chunk_size[0], self.single_chunk_size[1])
+
+            # Condition2: If total chunk length reach the maximum, jump out of chunking.
+            if idx + chunk_len > self.max_total_chunk_length:
+                break
+
+            chunk_ids = text_tokens[idx : idx+chunk_len]
+
+            chunk_compress_token_len = self.round_up_to_10((chunk_len) * self.compress_ratio)
+            chunk_compress_tokens = self.compress_tokens[:chunk_compress_token_len]
+
+            # if len(chunk_compress_tokens) != chunk_compress_token_len:
+            #     import ipdb
+            #     ipdb.set_trace()
+
+            segment_ids_1.extend([chunk_counter] * (chunk_len + 1 + chunk_compress_token_len) + [0] * self.link_token_num)
+
+            segment_ids_2.extend([1] * (chunk_len + 1) + [2] * chunk_compress_token_len + [3] * self.link_token_num)
+
+            labels.extend([-100] * (chunk_len + 1 + chunk_compress_token_len + self.link_token_num))
+
+            position_ids.extend(list(range(current_position - chunk_len - 1, current_position + chunk_compress_token_len + self.link_token_num)))
+
+            output_sequence.extend(chunk_ids + [self.chunk_end_token] + chunk_compress_tokens + self.link_tokens[chunk_counter-1])
+
+            current_position += chunk_compress_token_len + self.link_token_num
+            idx += chunk_len
+
+        remaining_ids = text_tokens[idx:]
+        remaining_len = len(remaining_ids)
+
+        output_sequence.extend([self.global_end_token] + remaining_ids)
+        segment_ids_1.extend([0] * (1 + remaining_len))
+        segment_ids_2.extend([3] * (1 + remaining_len))
+        labels.extend([-100] + remaining_ids)
+        position_ids.extend(list(range(current_position, current_position + 1 + remaining_len)))
+
+        # if len(output_sequence) != len(segment_ids_1):
+        #     import ipdb
+        #     ipdb.set_trace()
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
     def process_qa_compress(
         self,
         example
