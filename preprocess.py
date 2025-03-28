@@ -8,26 +8,21 @@ CUDA_VISIBLE_DEVICES=0 accelerate launch --config_file configs/single_gpu.yaml \
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 accelerate launch --config_file configs/fsdp.yaml \
     --main_process_port 25678 block_attn_trainer.py
 """
-import os
 from typing import Tuple
 
 import datasets
-import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
-from functools import partial
 
-from src.data.input_preprocessor import custom_collate_compress, compress_attention_preprocessor
-from src.training.custom_trainer import CustomTrainerCompressAttn
-
+from src.data.input_preprocessor import compress_ratio_preprocessor
 
 def load_from_disk_then_process(
     data_component_name: str,
-    preprocessor: compress_attention_preprocessor,
+    preprocessor,
 ) -> Tuple[datasets.IterableDataset, datasets.Dataset]:
     """
     load the downloaded data from disk and then pair it with the preprocessor
     """
-    if data_component_name in ["text_singlechunk", "text_multichunk", "text_multichunk2"]:
+    if data_component_name in ["text_singlechunk", "text_multichunk", "text_multichunk2", "text_multichunk_kvlink"]:
         data_path = f"dataset_cache/processed/fineweb/{data_component_name}"
         if data_component_name == "text_multichunk":
             preprocessor_fn = preprocessor.process_pretraining_multichunk_completion_compress
@@ -38,6 +33,9 @@ def load_from_disk_then_process(
         elif data_component_name == "text_multichunk2":
             preprocessor_fn = preprocessor.process_pretraining_multichunk2_batch
             data_path = "dataset_cache/processed/fineweb/text_min500"
+        elif data_component_name == "text_multichunk_kvlink":
+            preprocessor_fn = preprocessor.process_pretraining_multichunk_kvlink_completion_compress
+            data_path = "dataset_cache/processed/fineweb/text_min2048"
         else:
             raise NotImplementedError()
         remove_columns = [
@@ -71,23 +69,35 @@ def load_from_disk_then_process(
 
 
 def main():
-    compress_tokens = list(range(128011, 128061))
 
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
 
-    preprocessor = compress_attention_preprocessor(
+    # compress_tokens = list(range(128011, 128061))
+    # preprocessor = compress_attention_preprocessor(
+    #     tokenizer=global_tokenizer,
+    #     max_len=4096,
+    #     compress_tokens=compress_tokens,
+    #     chunk_size=100,
+    #     chunk_end_token=128253,
+    #     do_shuffle=True
+    # )
+
+    compress_tokens = list(range(128011, 128211))
+    ratio = 0.5
+    preprocessor = compress_ratio_preprocessor(
         tokenizer=global_tokenizer,
         max_len=4096,
         compress_tokens=compress_tokens,
-        chunk_size=100,
+        compress_ratio=ratio,
         chunk_end_token=128253,
-        do_shuffle=True
+        do_shuffle=True,
+        max_chunk_num=20,
     )
 
-    train_set, test_set = load_from_disk_then_process("text_multichunk", preprocessor)
+    train_set, test_set = load_from_disk_then_process("text_multichunk_kvlink", preprocessor)
     dataset = datasets.DatasetDict({'train': train_set, 'test': test_set})
     shards = {'train': 128, 'test': 4}
-    dataset.save_to_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_50_chunkcomp_limited", num_shards=shards, num_proc=128)
+    dataset.save_to_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_kvlink_50_ratiocomp", num_shards=shards, num_proc=128)
 
 
 if __name__ == "__main__":
