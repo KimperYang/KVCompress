@@ -84,7 +84,7 @@ def main():
         tokenizer=global_tokenizer,
         max_len=4096,
         do_shuffle=True,
-        link_token_num = 1,
+        link_token_num = 0,
         max_chunk_num = 10,
     )
 
