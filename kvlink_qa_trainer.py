@@ -94,9 +94,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/kvlink_qa",
+        output_dir="training_res/block_qa",
         report_to="wandb",
-        run_name="kvlink_qa",
+        run_name="block_qa",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
