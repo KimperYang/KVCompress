@@ -152,7 +152,7 @@ def main():
         max_chunk_num = 20,
     )
 
-    train_set, test_set = load_from_disk_then_process("text_multichunk_kvlink", preprocessor)
+    train_set, test_set = load_from_disk_then_process("text_multichunk", preprocessor)
     dataset = datasets.DatasetDict({'train': train_set, 'test': test_set})
     shards = {'train': 128, 'test': 4}
     dataset.save_to_disk("dataset_cache/processed/fineweb/mapped_text_kvlink", num_shards=shards, num_proc=128)
