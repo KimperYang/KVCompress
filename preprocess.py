@@ -45,12 +45,12 @@ def load_from_disk_then_process(
         raise NotImplementedError()
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
 
-    streaming_train_dataset = data_component["train"].to_iterable_dataset(num_shards=num_shards)
+    streaming_train_dataset = data_component["train"]
     # streaming_train_dataset = data_component["train"]
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        # num_proc=16,
+        num_proc=96,
         batched=False,
     )
 
@@ -58,7 +58,7 @@ def load_from_disk_then_process(
     eval_data = eval_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        num_proc=16,
+        num_proc=96,
         batched=False,
         load_from_cache_file=False
     )
