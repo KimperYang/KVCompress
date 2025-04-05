@@ -99,7 +99,7 @@ res_list = []
 global_start_token = 128254
 global_end_token = 128255
 
-link_token_num = 0
+link_token_num = 1
 link_token_start = 128011
 link_tokens = [
     [
