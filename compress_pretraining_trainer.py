@@ -73,7 +73,9 @@ def load_from_disk_then_process(
 
 def main():
     batch_size_per_device = 4
-    compress_tokens = list(range(128011, 128061))
+
+    # compress_tokens = list(range(128011, 128061))
+    compress_tokens = list(range(128011, 128031))
 
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
@@ -93,14 +95,14 @@ def main():
     )
 
     # train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk2", preprocessor)
-    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_50_chunkcomp")
+    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_20_chunkcomp")
     train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/compress_chunk_pretrain_multichunk20k",
+        output_dir="training_res/compress_chunk20_pretrain_multichunk20k",
         report_to="wandb",
         run_name=f"compress_chunk_{len(compress_tokens)}_pretrain_multichunk20k",
         per_device_train_batch_size= batch_size_per_device,
@@ -137,8 +139,8 @@ def main():
         data_collator = custom_collate_compress
     )
 
-    # trainer.train()
-    trainer.train(resume_from_checkpoint = True)
+    trainer.train()
+    # trainer.train(resume_from_checkpoint = True)
 
 if __name__ == "__main__":
     main()
