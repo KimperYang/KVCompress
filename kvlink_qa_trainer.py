@@ -72,9 +72,9 @@ def load_from_disk_then_process(
 def main():
     batch_size_per_device = 4
 
-    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/kvlink_pretrain/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "meta-llama/Llama-3.2-1B",
+        "training_res/kvlink_pretrain/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -84,7 +84,7 @@ def main():
         tokenizer=global_tokenizer,
         max_len=4096,
         do_shuffle=True,
-        link_token_num = 0,
+        link_token_num = 1,
         max_chunk_num = 10,
     )
 
