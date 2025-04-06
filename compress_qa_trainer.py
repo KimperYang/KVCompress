@@ -81,11 +81,11 @@ def load_from_disk_then_process(
 
 def main():
     batch_size_per_device = 4
-    compress_tokens = list(range(128011, 128061))
+    compress_tokens = list(range(128011, 128031))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_chunk_pretrain_multichunk20k/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_chunk20_pretrain_multichunk20k/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/compress_chunk_pretrain_multichunk20k/checkpoint-20000",
+        "training_res/compress_chunk20_pretrain_multichunk20k/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -106,9 +106,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/compress_chunk_qa_kvlink_nopadding_multichunk20k_epoch2",
+        output_dir="training_res/compress_chunk20_qa_kvlink_nopadding_multichunk20k_epoch2",
         report_to="wandb",
-        run_name=f"compress_chunk_{len(compress_tokens)}_qa_kvlink_nopadding_multichunk20k_epoch2_bsz{batch_size_per_device}",
+        run_name=f"compress_chunk20_{len(compress_tokens)}_qa_kvlink_nopadding_multichunk20k_epoch2_bsz{batch_size_per_device}",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         # max_steps=2500,
