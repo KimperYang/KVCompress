@@ -89,7 +89,7 @@ model.to('cuda')
 system = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are an AI assistant. "
           "Always ground your answers in the retrieved documents and do not add unsupported details. If the documents lack sufficient information, indicate that.")
 
-total_num = len(data)
+total_num = 500
 correct_num = 0
 res_list = []
 
@@ -98,7 +98,7 @@ chunk_size = 100
 chunk_end_token = 128253
 global_start_token = 128254
 global_end_token = 128255
-compress_tokens = list(range(128011, 128061))
+compress_tokens = list(range(128011, 128031))
 
 link_token_num = 1
 link_token_start = compress_tokens[-1] + 1
@@ -204,7 +204,7 @@ if not os.path.exists(f"result/{run_name}"):
 
 accuracy = correct_num / total_num
 
-file_name = f"result/{run_name}/nq2_full_ckpt{ckpt}_{accuracy}.jsonl"
+file_name = f"result/{run_name}/nq2_ckpt{ckpt}_{accuracy}.jsonl"
 
 with open(file_name, 'w', encoding='utf-8') as f:
     for entry in res_list:
