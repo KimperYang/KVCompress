@@ -1,5 +1,5 @@
 # python preprocess.py
-accelerate launch --config_file config/step2.yaml --main_process_port 25671 compress_qa_trainer.py
+# accelerate launch --config_file config/step2.yaml --main_process_port 25671 compress_qa_trainer.py
 CUDA_VISIBLE_DEVICES=4 python scripts/evaluation/chunk_nopadding/tqa_eval.py --run "compress_chunk20_qa_nopadding_multichunk20k_epoch2" --ckpt 1122 &
 CUDA_VISIBLE_DEVICES=5 python scripts/evaluation/chunk_nopadding/nq2_eval.py --run "compress_chunk20_qa_nopadding_multichunk20k_epoch2" --ckpt 1122 &
 CUDA_VISIBLE_DEVICES=6 python scripts/evaluation/chunk_nopadding/hqa2_eval.py --run "compress_chunk20_qa_nopadding_multichunk20k_epoch2" --ckpt 1122 &
