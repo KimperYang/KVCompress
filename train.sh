@@ -1,9 +1,9 @@
 # python preprocess.py
 # accelerate launch --config_file config/step2.yaml --main_process_port 25671 compress_qa_trainer.py
-CUDA_VISIBLE_DEVICES=0 python scripts/evaluation/kvlink/tqa_eval.py --run "kvlink_qa_pretrain20k" --ckpt 1122 &
-CUDA_VISIBLE_DEVICES=1 python scripts/evaluation/kvlink/hqa2_eval.py --run "kvlink_qa_pretrain20k" --ckpt 1122 &
-# CUDA_VISIBLE_DEVICES=2 python scripts/evaluation/kvlink/nq2_eval.py --run "kvlink_qa_pretrain20k" --ckpt 1122 &
-CUDA_VISIBLE_DEVICES=3 python scripts/evaluation/kvlink/wiki_eval.py --run "kvlink_qa_pretrain20k" --ckpt 1122 &
+CUDA_VISIBLE_DEVICES=4 python scripts/evaluation/chunk_nopadding_kvlink/tqa_eval.py --run "compress_chunk20_qa_kvlink_nopadding_multichunk20k_epoch2" --ckpt 1122 &
+# CUDA_VISIBLE_DEVICES=5 python scripts/evaluation/chunk_nopadding_kvlink/nq2_eval.py --run "compress_chunk20_qa_kvlink_nopadding_multichunk20k_epoch2" --ckpt 1122 &
+CUDA_VISIBLE_DEVICES=6 python scripts/evaluation/chunk_nopadding_kvlink/hqa2_eval.py --run "compress_chunk20_qa_kvlink_nopadding_multichunk20k_epoch2" --ckpt 1122 &
+CUDA_VISIBLE_DEVICES=7 python scripts/evaluation/chunk_nopadding_kvlink/wiki_eval.py --run "compress_chunk20_qa_kvlink_nopadding_multichunk20k_epoch2" --ckpt 1122 &
 wait
 # accelerate launch --config_file config/step2.yaml --main_process_port 25671 ratio_compress_qa_trainer.py
 # CUDA_VISIBLE_DEVICES=0 python scripts/evaluation/ratio_kvlink/tqa_eval.py --run "ratio_compress_qa_kvlink_linkchunk20k" --ckpt 1122 &
