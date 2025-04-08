@@ -89,7 +89,7 @@ model.to('cuda')
 system = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are an AI assistant. "
           "Always ground your answers in the retrieved documents and do not add unsupported details. If the documents lack sufficient information, indicate that.")
 
-total_num = 500
+total_num = len(data)
 correct_num = 0
 res_list = []
 
@@ -194,7 +194,7 @@ if not os.path.exists(f"result/{run_name}"):
 
 accuracy = correct_num / total_num
 
-file_name = f"result/{run_name}/wiki_ckpt{ckpt}_{accuracy}.jsonl"
+file_name = f"result/{run_name}/wiki_full_ckpt{ckpt}_{accuracy}.jsonl"
 
 with open(file_name, 'w', encoding='utf-8') as f:
     for entry in res_list:
