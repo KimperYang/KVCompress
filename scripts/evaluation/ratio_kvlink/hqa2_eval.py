@@ -103,7 +103,7 @@ global_start_token = 128254
 global_end_token = 128255
 compress_tokens = list(range(128011, 128211))
 
-link_token_num = 1
+link_token_num = 4
 link_token_start = compress_tokens[-1] + 1
 link_tokens = [
     [
