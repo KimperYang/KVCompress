@@ -91,19 +91,19 @@ def main():
         compress_ratio=ratio,
         chunk_end_token=128253,
         do_shuffle=True,
-        link_token_num = 1,
+        link_token_num = 4,
         max_chunk_num = 10,
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_compress", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa_compress_link", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/ratio_compress_qa_multichunk20k",
+        output_dir="training_res/ratio_compress_qa_link4_multichunk20k",
         report_to="wandb",
-        run_name=f"ratio_compress_qa_{int(len(compress_tokens) * 100)}_multichunk20k",
+        run_name=f"ratio_compress_qa_link4_{int(len(compress_tokens) * 100)}_multichunk20k",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
