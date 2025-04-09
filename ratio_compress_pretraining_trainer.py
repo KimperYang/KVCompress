@@ -63,9 +63,10 @@ def load_from_disk_then_process(
 
 def main():
     batch_size_per_device = 4
-    compress_tokens = list(range(128011, 128211))
-    ratio = 0.5
-
+    # compress_tokens = list(range(128011, 128211))
+    # ratio = 0.5
+    compress_tokens = list(range(128011, 128091))
+    ratio = 0.2
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
         "meta-llama/Llama-3.2-1B",
@@ -86,16 +87,16 @@ def main():
     )
 
     # train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk", preprocessor)
-    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_kvlink_50_ratiocomp")
+    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_20_ratiocomp")
     train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/ratio_{int(ratio * 100)}_compress_multichunk20k_kvlink",
+        output_dir=f"training_res/ratio_{int(ratio * 100)}_compress_multichunk20k",
         report_to="wandb",
-        run_name=f"ratio_compress_{int(ratio * 100)}_multichunk20k_kvlink",
+        run_name=f"ratio_compress_{int(ratio * 100)}_multichunk20k",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=2,
         max_steps=20000,

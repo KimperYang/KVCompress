@@ -13,7 +13,7 @@ from typing import Tuple
 import datasets
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 
-from src.data.input_preprocessor import compress_attention_preprocessor
+from src.data.input_preprocessor import compress_ratio_preprocessor
 
 def load_from_disk_then_process(
     data_component_name: str,
@@ -122,27 +122,27 @@ def main():
 
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
 
-    compress_tokens = list(range(128011, 128031))
-    preprocessor = compress_attention_preprocessor(
-        tokenizer=global_tokenizer,
-        max_len=4096,
-        compress_tokens=compress_tokens,
-        chunk_size=100,
-        chunk_end_token=128253,
-        do_shuffle=True
-    )
-
-    # compress_tokens = list(range(128011, 128211))
-    # ratio = 0.5
-    # preprocessor = compress_ratio_preprocessor(
+    # compress_tokens = list(range(128011, 128031))
+    # preprocessor = compress_attention_preprocessor(
     #     tokenizer=global_tokenizer,
     #     max_len=4096,
     #     compress_tokens=compress_tokens,
-    #     compress_ratio=ratio,
+    #     chunk_size=100,
     #     chunk_end_token=128253,
-    #     do_shuffle=True,
-    #     max_chunk_num=20,
+    #     do_shuffle=True
     # )
+
+    compress_tokens = list(range(128011, 128091))
+    ratio = 0.2
+    preprocessor = compress_ratio_preprocessor(
+        tokenizer=global_tokenizer,
+        max_len=4096,
+        compress_tokens=compress_tokens,
+        compress_ratio=ratio,
+        chunk_end_token=128253,
+        do_shuffle=True,
+        max_chunk_num=20,
+    )
 
     # preprocessor = kvlink_preprocessor(
     #     tokenizer=global_tokenizer,
@@ -155,7 +155,7 @@ def main():
     train_set, test_set = load_from_disk_then_process("text_multichunk", preprocessor)
     dataset = datasets.DatasetDict({'train': train_set, 'test': test_set})
     shards = {'train': 128, 'test': 4}
-    dataset.save_to_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_20_chunkcomp", num_shards=shards, num_proc=128)
+    dataset.save_to_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_20_ratiocomp", num_shards=shards, num_proc=128)
 
 
 if __name__ == "__main__":
