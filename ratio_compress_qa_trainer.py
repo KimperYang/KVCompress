@@ -91,11 +91,11 @@ def main():
         compress_ratio=ratio,
         chunk_end_token=128253,
         do_shuffle=True,
-        link_token_num = 1,
+        link_token_num = 4,
         max_chunk_num = 10,
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_compress", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa_compress_link", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
