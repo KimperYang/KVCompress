@@ -62,14 +62,14 @@ print(position_ids)
 print(labels)
 print(output_sequence)
 
-segment_ids_1 = torch.tensor([segment_ids_1])
-segment_ids_2 = torch.tensor([segment_ids_2])
+# segment_ids_1 = torch.tensor([segment_ids_1])
+# segment_ids_2 = torch.tensor([segment_ids_2])
 
 mask = make_segment_mask_with_two_rules(
-    source_segments_1=segment_ids_1,
-    target_segments_1=segment_ids_1,
-    source_segments_2=segment_ids_2,
-    target_segments_2=segment_ids_2,
+    source_segments_1=torch.tensor([segment_ids_1]),
+    target_segments_1=torch.tensor([segment_ids_1]),
+    source_segments_2=torch.tensor([segment_ids_2]),
+    target_segments_2=torch.tensor([segment_ids_2]),
     dtype=torch.bfloat16,
     add_causal_lm_mask=True
 )
@@ -77,3 +77,16 @@ mask = make_segment_mask_with_two_rules(
 print(mask)
 
 # Test
+for i in range(len(output_sequence)):
+    for j in range(i):
+        # If the token is a normal global token
+        if segment_ids_2[i] == 3 and segment_ids_1[i] == 0 and (segment_ids_2[j] == 2 or segment_ids_2[j] == 3):
+            assert mask[0][i][j] == float(0)
+        # If they are in same chunk
+        elif segment_ids_2[i] == 1 and segment_ids_2[j] == 1 and segment_ids_1[i] == segment_ids_1[j]:
+            assert mask[0][i][j] == float(0)
+        # If the token is compression token
+        elif segment_ids_2[i] == 2 and (segment_ids_2[j] == 1 or segment_ids_2[j] == 2) and (segment_ids_1[i] == segment_ids_1[j]):
+            assert mask[0][i][j] == float(0)
+        else:
+            assert mask[0][i][j] == float('-inf')
