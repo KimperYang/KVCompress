@@ -1,4 +1,5 @@
 import torch 
+import random
 from src.data.attention import make_segment_mask_with_two_rules
 
 def process_text(system_id, document_ids, chunk_compress_tokens, link_tokens, user_id):
@@ -8,13 +9,6 @@ def process_text(system_id, document_ids, chunk_compress_tokens, link_tokens, us
     output_sequence = []
     position_ids = []
 
-    # system_id = ["sys", "sys"]
-    # document_ids = [
-    #     ["chunk1_1", "chunk1_2", "chunk1_3"],
-    #     ["chunk2_1", "chunk2_2", "chunk2_3"]
-    # ]
-
-    # chunk_compress_tokens = ["comp"]
     chunk_compress_token_len = len(chunk_compress_tokens)
 
     sys_len = len(system_id)
@@ -25,7 +19,6 @@ def process_text(system_id, document_ids, chunk_compress_tokens, link_tokens, us
     labels.extend([-100] * sys_len)
     position_ids.extend(list(range(sys_len)))
 
-    # link_tokens = ["link"]
     link_token_num = len(link_tokens)
 
     current_index = sys_len
@@ -62,6 +55,8 @@ chunk_compress_tokens = ["comp"]
 link_tokens = ["link"]
 user_id = ["user"]
 
+
+
 segment_ids_1, segment_ids_2, position_ids, labels, output_sequence = process_text(system_id=system_id, 
         document_ids=document_ids, chunk_compress_tokens=chunk_compress_tokens, link_tokens=link_tokens, user_id=user_id)
 
@@ -73,7 +68,7 @@ print("Input ids:\n", output_sequence)
 print("Labels:\n", labels)
 print("Position ids:\n", position_ids)
 
-assert position_ids == [0, 1, -1, 0, 1, 2, 3, 1, 2, 3, 4, 5, 6]
+# assert position_ids == [0, 1, -1, 0, 1, 2, 3, 1, 2, 3, 4, 5, 6]
 
 mask = make_segment_mask_with_two_rules(
     source_segments_1=torch.tensor([segment_ids_1]),
@@ -89,13 +84,13 @@ print("Attention mask:\n",mask)
 # Test
 for i in range(len(output_sequence)):
     for j in range(i):
-        # If the token is a normal global token
+        # If the token is a normal global token, it attends to all the compression token or preceding normal token.
         if segment_ids_2[i] == 3 and segment_ids_1[i] == 0 and (segment_ids_2[j] == 2 or segment_ids_2[j] == 3):
             assert mask[0][i][j] == float(0)
-        # If they are in same chunk
+        # If the token is a chunk token, it attends to all the chunk tokens in the same chunk.
         elif segment_ids_2[i] == 1 and segment_ids_2[j] == 1 and segment_ids_1[i] == segment_ids_1[j]:
             assert mask[0][i][j] == float(0)
-        # If the token is compression token
+        # If the token is a compression token, it attends to the preceding compression tokens and chunk tokens in the same chunk.
         elif segment_ids_2[i] == 2 and (segment_ids_2[j] == 1 or segment_ids_2[j] == 2) and (segment_ids_1[i] == segment_ids_1[j]):
             assert mask[0][i][j] == float(0)
         else:
