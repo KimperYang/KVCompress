@@ -97,7 +97,7 @@ def main():
         max_chunk_num = 10,
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_compress_kvlink", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa_compress_link", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
