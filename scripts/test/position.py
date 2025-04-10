@@ -1,16 +1,19 @@
+import torch 
+from src.data.attention import make_segment_mask_with_two_rules
+
 segment_ids_1 = []
 segment_ids_2 = []
 labels = []
 output_sequence = []
 position_ids = []
 
-system_id = [1, 2]
+system_id = ["sys", "sys"]
 document_ids = [
-    [3, 4, 5],
-    [6, 7, 8]
+    ["chunk1_1", "chunk1_2", "chunk1_3"],
+    ["chunk2_1", "chunk2_2", "chunk2_3"]
 ]
 
-chunk_compress_tokens = [-1]
+chunk_compress_tokens = ["comp"]
 chunk_compress_token_len = len(chunk_compress_tokens)
 
 sys_len = len(system_id)
@@ -21,7 +24,7 @@ segment_ids_2.extend([3] * sys_len)
 labels.extend([-100] * sys_len)
 position_ids.extend(list(range(sys_len)))
 
-link_tokens = [999]
+link_tokens = ["link"]
 link_token_num = 1
 
 current_index = sys_len
@@ -37,7 +40,7 @@ for j in range(len(document_ids)):
 
     current_index += chunk_compress_token_len + link_token_num
 
-user_id = [9]
+user_id = ["user"]
 user_len = len(user_id)
 segment_ids_1.extend([0] * user_len)
 segment_ids_2.extend([3] * user_len)
@@ -46,7 +49,7 @@ position_ids.extend(list(range(current_index, current_index + user_len)))
 output_sequence.extend(user_id)
 current_index += user_len
 
-ans_id = [10]
+ans_id = ["asst"]
 ans_len = len(ans_id)
 segment_ids_1.extend([0] * ans_len)
 segment_ids_2.extend([3] * ans_len)
@@ -58,3 +61,19 @@ print(segment_ids_2)
 print(position_ids)
 print(labels)
 print(output_sequence)
+
+segment_ids_1 = torch.tensor([segment_ids_1])
+segment_ids_2 = torch.tensor([segment_ids_2])
+
+mask = make_segment_mask_with_two_rules(
+    source_segments_1=segment_ids_1,
+    target_segments_1=segment_ids_1,
+    source_segments_2=segment_ids_2,
+    target_segments_2=segment_ids_2,
+    dtype=torch.bfloat16,
+    add_causal_lm_mask=True
+)
+
+print(mask)
+
+# Test
