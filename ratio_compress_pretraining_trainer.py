@@ -131,8 +131,8 @@ def main():
         data_collator = custom_collate_compress
     )
 
-    trainer.train()
-    # trainer.train(resume_from_checkpoint = True)
+    # trainer.train()
+    trainer.train(resume_from_checkpoint = True)
 
 if __name__ == "__main__":
     main()
