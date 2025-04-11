@@ -111,9 +111,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/ratio_{int(ratio * 100)}_compress_qa_kvlink5_multichunk20k_2e-5",
+        output_dir=f"training_res/ratio_{int(ratio * 100)}_compress_qa_kvlink5_multichunk20k_1e-5",
         report_to="wandb",
-        run_name=f"ratio_{int(ratio * 100)}_compress_qa_kvlink5_multichunk20k_2e-5",
+        run_name=f"ratio_{int(ratio * 100)}_compress_qa_kvlink5_multichunk20k_1e-5",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
@@ -122,7 +122,7 @@ def main():
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
-        learning_rate=2e-5,
+        learning_rate=1e-5,
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
         evaluation_strategy="epoch",  # Add this line
