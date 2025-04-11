@@ -46,16 +46,20 @@ def process_text(system_id, document_ids, chunk_compress_tokens, link_tokens, us
     return segment_ids_1, segment_ids_2, position_ids, labels, output_sequence
 
 
-system_id = ["sys", "sys"]
-document_ids = [
-        ["chunk1_1", "chunk1_2", "chunk1_3"],
-        ["chunk2_1", "chunk2_2", "chunk2_3"]
-    ]
-chunk_compress_tokens = ["comp"]
-link_tokens = ["link"]
-user_id = ["user"]
+# system_id = ["sys", "sys"]
+# document_ids = [
+#         ["chunk1_1", "chunk1_2", "chunk1_3"],
+#         ["chunk2_1", "chunk2_2", "chunk2_3"]
+#     ]
+# chunk_compress_tokens = ["comp"]
+# link_tokens = ["link"]
+# user_id = ["user"]
 
-
+system_id = ["sys"] * random.randint(1, 10)
+document_ids = [[f"chunk{i+1}"] * random.randint(50, 100) for i in range(random.randint(6, 10))]
+chunk_compress_tokens = ["comp"] * random.randint(10,20)
+link_tokens = ["link"] * random.randint(1,5)
+user_id = ["user"] * random.randint(20,30)
 
 segment_ids_1, segment_ids_2, position_ids, labels, output_sequence = process_text(system_id=system_id, 
         document_ids=document_ids, chunk_compress_tokens=chunk_compress_tokens, link_tokens=link_tokens, user_id=user_id)
