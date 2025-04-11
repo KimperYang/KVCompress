@@ -53,7 +53,7 @@ def load_from_disk_then_process(
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        num_proc=16,
+        num_proc=96,
         batched=False,
     )
 
@@ -61,7 +61,7 @@ def load_from_disk_then_process(
     eval_data = eval_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        num_proc=16,
+        num_proc=96,
         batched=False,
         load_from_cache_file=False
     )
