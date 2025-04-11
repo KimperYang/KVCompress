@@ -53,7 +53,7 @@ def load_from_disk_then_process(
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        num_proc=16,
+        num_proc=96,
         batched=False,
     )
 
@@ -61,7 +61,7 @@ def load_from_disk_then_process(
     eval_data = eval_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        num_proc=16,
+        num_proc=96,
         batched=False,
         load_from_cache_file=False
     )
@@ -94,9 +94,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/kvlink_qa",
+        output_dir="training_res/kvlink_qa2",
         report_to="wandb",
-        run_name="kvlink_qa",
+        run_name="kvlink_qa2",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
