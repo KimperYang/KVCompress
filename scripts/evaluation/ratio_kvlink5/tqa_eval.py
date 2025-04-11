@@ -97,9 +97,9 @@ correct_num = 0
 res_list = []
 
 compress_ratio = 0.5
-chunk_end_token=128005,
-global_start_token=128002,
-global_end_token=128003,
+chunk_end_token=128005
+global_start_token=128002
+global_end_token=128003
 compress_tokens = list(range(128011, 128211))
 
 link_token_num = 5
