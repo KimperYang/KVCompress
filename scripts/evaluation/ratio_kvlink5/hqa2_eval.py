@@ -98,9 +98,9 @@ correct_num = 0
 res_list = []
 
 compress_ratio = 0.5
-chunk_end_token=128005,
-global_start_token=128002,
-global_end_token=128003,
+chunk_end_token=128005
+global_start_token=128002
+global_end_token=128003
 compress_tokens = list(range(128011, 128211))
 
 link_token_num = 5
@@ -155,9 +155,6 @@ for i in range(total_num):
     position_ids.extend(list(range(current_index, current_index + user_len)))
     input_ids.extend(user_id)
     current_index += user_len
-
-    import ipdb
-    ipdb.set_trace()
 
     input_ids = torch.tensor([input_ids], device = model.device)
     position_ids = torch.tensor([position_ids], device=model.device)
