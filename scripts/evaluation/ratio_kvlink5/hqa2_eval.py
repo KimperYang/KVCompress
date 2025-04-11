@@ -156,6 +156,9 @@ for i in range(total_num):
     input_ids.extend(user_id)
     current_index += user_len
 
+    import ipdb
+    ipdb.set_trace()
+
     input_ids = torch.tensor([input_ids], device = model.device)
     position_ids = torch.tensor([position_ids], device=model.device)
     segment_ids_1 = torch.tensor([segment_ids_1])
