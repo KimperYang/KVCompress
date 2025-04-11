@@ -72,9 +72,9 @@ def load_from_disk_then_process(
 def main():
     batch_size_per_device = 4
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/kvlink_pretrain/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/kvlink_pretrain/checkpoint-20000",
+        "meta-llama/Llama-3.2-1B",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -94,9 +94,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/kvlink_qa_pretrain20k",
+        output_dir="training_res/kvlink_qa",
         report_to="wandb",
-        run_name="kvlink_qa_pretrain20k",
+        run_name="kvlink_qa",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",

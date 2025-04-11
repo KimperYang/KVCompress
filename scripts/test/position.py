@@ -87,7 +87,7 @@ print("Attention mask:\n",mask)
 
 # Test
 for i in range(len(output_sequence)):
-    for j in range(i):
+    for j in range(i+1):
         # If the token is a normal global token, it attends to all the compression token or preceding normal token.
         if segment_ids_2[i] == 3 and segment_ids_1[i] == 0 and (segment_ids_2[j] == 2 or segment_ids_2[j] == 3):
             assert mask[0][i][j] == float(0)
