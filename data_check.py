@@ -93,7 +93,7 @@ def do_stats(dataset_name, tokenizer):
                 text = data[i]['documents'][j]['text']
                 tem_id = tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids
                 accumulated_len += len(tem_id)
-                chunk_num += math.ceil(tem_id / 100)
+                chunk_num += math.ceil(len(tem_id) / 100)
             context_len.append(accumulated_len / len(data[i]['documents']))
             chunk_num_list.append(chunk_num)
 
