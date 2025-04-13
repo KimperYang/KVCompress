@@ -139,7 +139,8 @@ bins = range(min(data), max(data) + 2)
 
 plt.hist(data, bins=bins, align='left', alpha=0.8)
 plt.axvline(mean_val, linestyle='--', label=f"Mean = {mean_val:.2f}")
-plt.axvline(median_val, linestyle=':', label=f"Median = {median_val:.2f}")
+# plt.axvline(median_val, linestyle=':', label=f"Median = {median_val:.2f}")
+plt.axvline(max(data), linestyle=':', label=f"Max = {max(data):.2f}")
 
 plt.title("Distribution of chunk num")
 plt.xlabel("Chunk number")
