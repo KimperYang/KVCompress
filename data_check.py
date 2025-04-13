@@ -6,6 +6,7 @@ import json
 import regex
 import datasets
 import math
+from tqdm import tqdm
 
 from typing import List
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -28,7 +29,7 @@ def do_stats(dataset_name, tokenizer):
         with open(file_path, 'r') as file:
             data = json.load(file)
     elif dataset_name == "train":
-        data = datasets.load_from_disk(file_path)
+        data = datasets.load_from_disk(file_path)['train']
     else:
         with open(file_path, 'r') as file:
             data = [json.loads(line) for line in file]
@@ -36,7 +37,7 @@ def do_stats(dataset_name, tokenizer):
     context_len = []
     context_num = []
     chunk_num_list = []
-    for i in range(len(data)):
+    for i in tqdm(range(len(data))):
 
         if dataset_name == "hqa":
 
