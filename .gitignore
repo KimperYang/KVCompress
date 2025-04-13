@@ -13,3 +13,4 @@ training_res/
 model_cache/
 run_logs/
 launch_script/
+id_rsa
