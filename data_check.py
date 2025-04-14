@@ -9,6 +9,7 @@ import math
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 from typing import List
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -154,21 +155,42 @@ print("Avg doc length: ", sum(doc_length_list) / len(doc_length_list))
 
 data = doc_length_list
 # Compute statistics for reference (optional)
-mean_val = np.mean(data)
-median_val = np.median(data)
+# mean_val = np.mean(data)
+# median_val = np.median(data)
 
-# Set up bins so each integer has its own bin
-# +2 on max(data) because range() is exclusive at the upper boundary
-bins = range(min(data), max(data) + 2)
+# # Set up bins so each integer has its own bin
+# # +2 on max(data) because range() is exclusive at the upper boundary
+# bins = range(min(data), max(data) + 2)
 
-plt.hist(data, bins=bins, align='left', alpha=0.8)
-plt.axvline(mean_val, linestyle='--', label=f"Mean = {mean_val:.2f}")
-# plt.axvline(median_val, linestyle=':', label=f"Median = {median_val:.2f}")
-plt.axvline(max(data), linestyle=':', label=f"Max = {max(data):.2f}")
+# plt.hist(data, bins=bins, align='left', alpha=0.8)
+# plt.axvline(mean_val, linestyle='--', label=f"Mean = {mean_val:.2f}")
+# # plt.axvline(median_val, linestyle=':', label=f"Median = {median_val:.2f}")
+# plt.axvline(max(data), linestyle=':', label=f"Max = {max(data):.2f}")
 
-plt.title("Distribution of Doc Length")
-plt.xlabel("Document token length")
-plt.ylabel("Frequency")
-plt.grid(True)
-plt.legend()
+# plt.title("Distribution of Doc Length")
+# plt.xlabel("Document token length")
+# plt.ylabel("Frequency")
+# plt.grid(True)
+# plt.legend()
+
+# Filter data to include only 0 <= x <= 500
+filtered_data = [x for x in data if 0 <= x <= 500]
+
+# Use Seaborn's whitegrid style for a clean look
+sns.set(style="whitegrid")
+
+# Construct bins of width 25 from 0 to 500 (inclusive)
+# range(0, 501, 25) creates edges: 0, 25, 50, ..., 500
+bins = range(0, 501, 25)
+
+# Plot histogram:
+#  - bins: controls our 25-unit intervals
+#  - stat='density': normalizes the histogram (heights correspond to probability density)
+#  - kde=False: turn off the kernel density curve
+ax = sns.histplot(filtered_data, bins=bins, stat='density', kde=False)
+
+# Labels and title
+ax.set_title("Distribution of Doc Length")
+ax.set_xlabel("Document token length")
+ax.set_ylabel("Frequency")
 plt.savefig(f"figs/{dataset_name}.png")  
