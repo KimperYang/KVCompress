@@ -40,7 +40,7 @@ def load_from_disk_then_process(
             "file_path", "language", "language_score", "token_count",
         ]
         num_shards = 512
-    elif data_component_name in ["qa", "qa_compress", "qa_link"]:
+    elif data_component_name in ["qa", "qa_compress", "qa_link", "qa_link_fix"]:
         if data_component_name == "qa":
             preprocessor_fn = preprocessor.process_qa_chunk_nopadding_compress
             data_path = "dataset_cache/processed/compress_qa"
