@@ -50,6 +50,9 @@ def load_from_disk_then_process(
         elif data_component_name == "qa_link":
             preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink
             data_path = "dataset_cache/processed/compress_qa"
+        elif data_component_name == "qa_link_fix":
+            preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink_fix
+            data_path = "dataset_cache/processed/compress_qa"
         else:
             raise NotImplementedError()
         remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
@@ -97,18 +100,20 @@ def main():
         compress_tokens=compress_tokens,
         chunk_size=100,
         chunk_end_token=128253,
-        do_shuffle=True
+        do_shuffle=True,
+        link_token_num=5,
+        max_memory_num=1
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_link", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa_link_fix", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/compress_chunk_qa_kvlink_nopadding_multichunk20k_1e-5",
+        output_dir="training_res/compress_chunk_qa_kvlink5_fix_nopadding_multichunk20k",
         report_to="wandb",
-        run_name=f"compress_chunk_{len(compress_tokens)}_qa_kvlink_nopadding_multichunk20k_1e-5",
+        run_name=f"compress_chunk_{len(compress_tokens)}_qa_kvlink5_fix_nopadding_multichunk20k",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         # max_steps=2500,
@@ -119,7 +124,7 @@ def main():
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
-        learning_rate=1e-5,
+        learning_rate=5e-6,
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
         evaluation_strategy="epoch",
