@@ -86,9 +86,9 @@ def main():
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_chunk_pretrain_multichunk20k/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/compress_chunk_pretrain_multichunk20k/checkpoint-20000",
+        "meta-llama/Llama-3.2-1B",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
