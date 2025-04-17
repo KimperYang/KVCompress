@@ -78,9 +78,9 @@ def main():
     # compress_tokens = list(range(128011, 128091))
     # ratio = 0.2
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/ratio_compress_multichunk20k/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/ratio_compress_multichunk20k/checkpoint-20000",
+        "meta-llama/Llama-3.2-1B",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -111,9 +111,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/ratio_{int(ratio * 100)}_compress_qa_kvlink5_multichunk20k_5e-6",
+        output_dir=f"training_res/ratiocomp_qa_link5",
         report_to="wandb",
-        run_name=f"ratio_{int(ratio * 100)}_compress_qa_kvlink5_multichunk20k_5e-6",
+        run_name=f"ratio_{int(ratio * 100)}_compress_qa_link5",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
