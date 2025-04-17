@@ -119,12 +119,12 @@ def do_stats(dataset_name, tokenizer):
     return filtered_list
     # return exceed_chunk_num_index
 
-data_path1="result/ratio_compress_qa_kvlink_multichunk20k/hqa2_full_ckpt1122_0.5752869682646861.jsonl"
-data_path2="result/ratio_compress_qa_multichunk20k/hqa2_full_ckpt1122_0.5786630654962863.jsonl"
+# data_path1="result/ratio_compress_qa_kvlink_multichunk20k/hqa2_full_ckpt1122_0.5752869682646861.jsonl"
+# data_path2="result/ratio_compress_qa_multichunk20k/hqa2_full_ckpt1122_0.5786630654962863.jsonl"
 # data_path3="result/kvlink_qa_pretrain20k/hqa2_full_ckpt1122_0.625118163403106.jsonl"
 data_path3="result/block_qa/hqa2_full_ckpt1122_0.6062120189061445.jsonl"
-# data_path1="result/compress_chunk_qa_kvlink_nopadding_multichunk20k_epoch2/hqa2_full_ckpt1122_0.57474679270763.jsonl"
-# data_path2="result/compress_chunk_qa_nopadding_multichunk20k_epoch2/hqa2_full_ckpt1122_0.5705604321404456.jsonl"
+data_path1="result/compress_chunk_qa_kvlink_nopadding_multichunk20k_epoch2/hqa2_full_ckpt1122_0.57474679270763.jsonl"
+data_path2="result/compress_chunk_qa_nopadding_multichunk20k_epoch2/hqa2_full_ckpt1122_0.5705604321404456.jsonl"
 # data_path3="result/kvlink_qa_pretrain20k/hqa2_full_ckpt1122_0.625118163403106.jsonl"
 
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")

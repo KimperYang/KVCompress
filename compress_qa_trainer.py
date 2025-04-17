@@ -101,19 +101,19 @@ def main():
         chunk_size=100,
         chunk_end_token=128253,
         do_shuffle=True,
-        link_token_num=5,
-        max_memory_num=1
+        # link_token_num=5,
+        # max_memory_num=1
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_link_fix", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/compress_chunk_qa_kvlink5_fix_nopadding_multichunk20k",
+        output_dir="training_res/chunkcomp_qa",
         report_to="wandb",
-        run_name=f"compress_chunk_{len(compress_tokens)}_qa_kvlink5_fix_nopadding_multichunk20k",
+        run_name=f"compress_chunk_{len(compress_tokens)}_qa",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         # max_steps=2500,
