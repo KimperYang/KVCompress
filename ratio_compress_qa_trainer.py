@@ -7,6 +7,7 @@ from typing import Tuple
 
 import datasets
 import torch
+import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from functools import partial
 
@@ -72,15 +73,23 @@ def load_from_disk_then_process(
 
 
 def main():
+
+    parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
+    parser.add_argument('--dataset', type=str, required=True, help='Path under training_res')
+
+    args = parser.parse_args()
+
+    dataset = args.dataset
+
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128211))
     ratio = 0.5
     # compress_tokens = list(range(128011, 128091))
     # ratio = 0.2
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/ratio_compress_multichunk20k/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/ratio_compress_multichunk20k/checkpoint-20000",
+        "meta-llama/Llama-3.2-1B",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -97,15 +106,15 @@ def main():
         max_chunk_num = 10,
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_compress_link", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process(dataset, preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/ratio_{int(ratio * 100)}_compress_qa_kvlink_multichunk20k_2e-5",
+        output_dir=f"training_res/ratio_compress_{dataset}",
         report_to="wandb",
-        run_name=f"ratio_{int(ratio * 100)}_compress_qa_kvlink_multichunk20k_2e-5",
+        run_name=f"ratio_{int(ratio * 100)}_compress_{dataset}",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
@@ -114,7 +123,7 @@ def main():
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
-        learning_rate=1e-5,
+        learning_rate=5e-6,
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
         evaluation_strategy="epoch",  # Add this line
