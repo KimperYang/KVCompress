@@ -139,7 +139,7 @@ def main():
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
         evaluation_strategy="steps",
-        # eval_steps=1000,
+        eval_steps=1000,
         gradient_checkpointing=True,
         save_total_limit=1,
         # overwrite_output_dir = False
