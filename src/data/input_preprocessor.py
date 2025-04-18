@@ -286,6 +286,58 @@ class compress_attention_preprocessor():
             "position_ids": position_ids[:self.max_len],
         }
 
+    def process_pretraining_multichunk_kvlink_completion_compress(
+        self,
+        example
+    ):
+        text_tokens = self.tokenizer(example['text'], add_special_tokens=False).input_ids[:self.max_len]
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+        chunk_num = random.randint(5,20)
+        remaining_ids = text_tokens[chunk_num * self.chunk_size:]
+        remaining_len = len(remaining_ids)
+
+        bos_tokens = self.tokenizer("").input_ids
+        output_sequence.extend(bos_tokens + [self.global_start_token])
+        segment_ids_1.extend([0]*2)
+        segment_ids_2.extend([3]*2)
+        labels.extend([-100]*2)
+        position_ids.extend([0,1])
+
+        current_position = 2
+        for i in range(chunk_num):
+            chunk_counter = i+1
+            chunk_ids = text_tokens[i * self.chunk_size : i * self.chunk_size + self.chunk_size] + [self.chunk_end_token]
+            chunk_len = len(chunk_ids)
+
+            segment_ids_1.extend([chunk_counter] * (chunk_len + len(self.compress_tokens)) + [0] * self.link_token_num)
+
+            segment_ids_2.extend([1] * chunk_len + [2] * len(self.compress_tokens) + [3] * self.link_token_num)
+
+            labels.extend([-100] * (chunk_len + len(self.compress_tokens) + self.link_token_num))
+
+            position_ids.extend(list(range(current_position - chunk_len, current_position + len(self.compress_tokens) + self.link_token_num)))
+            current_position += len(self.compress_tokens) + self.link_token_num
+
+            output_sequence.extend(chunk_ids + self.compress_tokens + self.link_tokens[i])
+
+        output_sequence.extend([self.global_end_token] + remaining_ids)
+        segment_ids_1.extend([0] * (1 + remaining_len))
+        segment_ids_2.extend([3] * (1 + remaining_len))
+        labels.extend([-100] + remaining_ids)
+        position_ids.extend(list(range(current_position, current_position + 1 + remaining_len)))
+
+        return {
+            "input_ids": output_sequence[:self.max_len],
+            "segment_ids_1": segment_ids_1[:self.max_len],
+            "segment_ids_2": segment_ids_2[:self.max_len],
+            "labels": labels[:self.max_len],
+            "position_ids": position_ids[:self.max_len],
+        }
+
     def process_pretraining_multichunk_batch(
         self,
         example
