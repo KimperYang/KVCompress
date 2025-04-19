@@ -69,7 +69,7 @@ def load_from_disk_then_process(
             data_path = "dataset_cache/processed/compress_qa"
         else:
             raise NotImplementedError()
-        remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
+        # remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
         num_shards = 32
     else:
         raise NotImplementedError()
