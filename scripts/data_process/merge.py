@@ -37,7 +37,7 @@ from datasets import load_from_disk, Dataset, DatasetDict
 # ─── 1. Paths ────────────────────────────────────────────────
 qa_path  = "dataset_cache/processed/compress_qa"   # reference dataset (has the full schema)
 hqa_path = "dataset_cache/processed/hqa"  # dataset that is missing some keys
-out_path = "dataset_cache/processed/hqa"
+out_path = "dataset_cache/processed/hqa_fix"
 
 # ─── 2. Load both datasets (works for Dataset or DatasetDict) ─
 qa  = load_from_disk(qa_path)
