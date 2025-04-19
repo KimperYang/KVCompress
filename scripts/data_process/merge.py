@@ -3,6 +3,15 @@ from datasets import DatasetDict, concatenate_datasets, load_from_disk
 dd1 = load_from_disk("dataset_cache/processed/compress_qa")
 dd2 = load_from_disk("dataset_cache/processed/hqa")
 
+def drop_score(batch):
+    batch["documents"] = [
+        [{k: v for k, v in doc.items() if k != "score"} for doc in docs] 
+        for docs in batch["documents"]
+    ]
+    return batch
+
+dd1 = dd1.map(drop_score, batched=True, num_proc=8, load_from_cache_file=False)
+
 merged = {}
 for split in dd1.keys() | dd2.keys():                 # union of split names
     d1 = dd1.get(split)
