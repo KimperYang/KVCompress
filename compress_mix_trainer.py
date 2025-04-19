@@ -58,20 +58,22 @@ def load_from_disk_then_process(
         elif data_component_name == "qa_link":
             preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink
             data_path = "dataset_cache/processed/compress_qa"
-        elif data_component_name == "hqa":
-            preprocessor_fn = preprocessor.process_qa_chunk_nopadding_compress
-            data_path = "dataset_cache/processed/hqa"
-        elif data_component_name == "hqa_link":
-            preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink
-            data_path = "dataset_cache/processed/hqa"
         elif data_component_name == "qa_link_fix":
             preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink_fix
             data_path = "dataset_cache/processed/compress_qa"
         else:
             raise NotImplementedError()
-        # remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
-        remove_columns = []
+        remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
+        # remove_columns = []
         num_shards = 32
+    elif data_component_name in ["hqa", "hqa_link"]:
+        if data_component_name == "hqa":
+            preprocessor_fn = preprocessor.process_qa_chunk_nopadding_compress
+            data_path = "dataset_cache/processed/hqa_fix"
+        elif data_component_name == "hqa_link":
+            preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink
+            data_path = "dataset_cache/processed/hqa_fix"
+        remove_columns=['question', 'generated', 'documents']
     else:
         raise NotImplementedError()
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
