@@ -39,60 +39,59 @@ qa_path  = "dataset_cache/processed/compress_qa"   # reference dataset (has the 
 hqa_path = "dataset_cache/processed/hqa"  # dataset that is missing some keys
 out_path = "dataset_cache/processed/hqa_fix"
 
-# ─── 2. Load both datasets (works for Dataset or DatasetDict) ─
 qa  = load_from_disk(qa_path)
 hqa = load_from_disk(hqa_path)
 
-# Helper: make {split_name: dataset} no matter the original type
-def splits(dset_or_dict):
-    if isinstance(dset_or_dict, Dataset):     # single split
-        return {"__single__": dset_or_dict}
-    return dset_or_dict                       # already a DatasetDict
+# Helper to iterate through splits uniformly
+def as_split_dict(ds):
+    if isinstance(ds, Dataset):
+        return {"__single__": ds}
+    return ds
 
-fixed_splits = {}
+fixed = {}
 
-# ─── 3. Align every split that exists in hqa ──────────────────
-for split, hqa_split in splits(hqa).items():
-    qa_split = splits(qa)[next(iter(splits(qa)))]  # any split in qa works
+for split, h in as_split_dict(hqa).items():
+    q = as_split_dict(qa)[next(iter(as_split_dict(qa)))]  # any qa split
 
-    # 3‑a. Which nested keys exist in qa["documents"]?
-    doc_template = qa_split[0]["documents"][0]     # {'title':.., 'text':.., 'score':..}
-    nested_keys  = list(doc_template.keys())
+    # ── 2. Make top‑level columns identical ─────────────────
+    cols_q = set(q.column_names)
+    cols_h = set(h.column_names)
 
-    # 3‑b. map() that adds the missing keys to each nested doc
-    def add_missing_keys(batch, default_map):
+    # 2‑a Drop extra columns in hqa
+    to_drop = list(cols_h - cols_q)
+    if to_drop:
+        h = h.remove_columns(to_drop)
+
+    # 2‑b Add missing columns to hqa (string default "")
+    to_add = list(cols_q - cols_h)
+    for col in to_add:
+        h = h.add_column(col, np.array([""] * len(h), dtype=object))
+
+    # Now h.column_names == q.column_names (order may differ)
+    # Re‑order to match qa exactly (important for cast)
+    h = h.select(range(len(h)))           # materialise to allow reordering
+    h = h.rename_columns({c: c for c in h.column_names})  # keeps original order
+    h = h.with_format(None)               # reset any Arrow formatting
+
+    # ── 3. Remove "score" inside each documents entry ───────
+    def strip_score(batch):
         batch["documents"] = [
-            [
-                {k: doc.get(k, default_map[k]) for k in default_map}
-                for doc in docs
-            ]
+            [{k: v for k, v in doc.items() if k != "score"} for doc in docs]
             for docs in batch["documents"]
         ]
         return batch
 
-    # Build a default value map with sensible dtypes
-    default_map = {
-        k: (0.0 if isinstance(v, (int, float)) else "")
-        for k, v in doc_template.items()
-    }
+    h = h.map(strip_score, batched=True, num_proc=8, load_from_cache_file=False)
 
-    hqa_fixed = hqa_split.map(
-        add_missing_keys,
-        batched=True,
-        fn_kwargs={"default_map": default_map},
-        load_from_cache_file=False,
-        num_proc=8,            # speed‑up; adjust to your CPU
-    )
+    # ── 4. Cast to qa.features ───────────────────────────────
+    h = h.cast(q.features)
 
-    # 3‑c. Cast Arrow schema to be *exactly* identical to qa
-    hqa_fixed = hqa_fixed.cast(qa_split.features)
+    fixed[split] = h
 
-    fixed_splits[split] = hqa_fixed
+# ─── 5. Save ────────────────────────────────────────────────
+if "__single__" in fixed:
+    fixed["__single__"].save_to_disk(out_path)      # Dataset
+else:
+    DatasetDict(fixed).save_to_disk(out_path)       # DatasetDict
 
-# ─── 4. Reassemble & save ─────────────────────────────────────
-if "__single__" in fixed_splits:                # original was Dataset
-    fixed_splits["__single__"].save_to_disk(out_path)
-else:                                           # original was DatasetDict
-    DatasetDict(fixed_splits).save_to_disk(out_path)
-
-print("✅  hqa dataset rewritten with aligned schema ->", out_path)
+print("✅  hqa dataset aligned and saved to", out_path)
