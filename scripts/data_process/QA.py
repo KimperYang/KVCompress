@@ -31,7 +31,7 @@ def set_args():
 def main(argv):
     shards = {'train': 128, 'test': 4}
 
-    dataset = load_dataset('json', data_files="/mnt/data2/jingbo/Block-Attention/cache/hqa_train")
+    dataset = load_dataset('json', data_files="/mnt/data2/jingbo/Block-Attention/cache/hqa_train")['train']
 
     total_num = len(dataset)
 
@@ -81,12 +81,15 @@ def main(argv):
         #     print("Context number not right")
         #     return False
 
-        for j in range(0,10):
+        for j in range(len(sample['documents'])):
             title = sample['documents'][j]['title']
             text = sample['documents'][j]['text']
             tem_id = tokenizer("<MEM_START>" + f"Document [{j+1}](Title: {title}) {text}\n<MEM_END><MEM_SUM>", add_special_tokens=False).input_ids
 
             input_ids += tem_id
+
+        if sample['generated'] == None:
+            return False
 
         user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + sample['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n" +  sample['generated']
         user_id = tokenizer(user, add_special_tokens=False).input_ids
