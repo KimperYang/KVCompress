@@ -1,6 +1,6 @@
 # python preprocess.py
-accelerate launch --config_file config/step2.yaml --main_process_port 25671 compress_mix_trainer.py --dataset "qa"
 accelerate launch --config_file config/step2.yaml --main_process_port 25671 compress_mix_trainer.py --dataset "qa_link"
+accelerate launch --config_file config/step2.yaml --main_process_port 25671 compress_mix_trainer.py --dataset "qa"
 
 CUDA_VISIBLE_DEVICES=0 python scripts/evaluation/chunk_nopadding_prompt/tqa_eval.py --run "chunkcomp_mix_qa_3k" --ckpt 3000 &
 CUDA_VISIBLE_DEVICES=1 python scripts/evaluation/chunk_nopadding_prompt/hqa2_eval.py --run "chunkcomp_mix_qa_3k" --ckpt 3000 &
