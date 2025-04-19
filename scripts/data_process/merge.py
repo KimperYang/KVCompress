@@ -33,7 +33,7 @@
 # Align the nested "documents" schema of hqa_dataset to qa_dataset
 # -------------------------------------------------------------
 from datasets import load_from_disk, Dataset, DatasetDict
-
+import numpy as np
 # ─── 1. Paths ────────────────────────────────────────────────
 qa_path  = "dataset_cache/processed/compress_qa"   # reference dataset (has the full schema)
 hqa_path = "dataset_cache/processed/hqa"  # dataset that is missing some keys
