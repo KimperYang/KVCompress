@@ -74,6 +74,7 @@ def load_from_disk_then_process(
             preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink
             data_path = "dataset_cache/processed/hqa_fix"
         remove_columns=['question', 'generated', 'documents']
+        num_shards = 32
     else:
         raise NotImplementedError()
     data_component: datasets.DatasetDict = datasets.load_from_disk(data_path)
