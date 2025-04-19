@@ -13,6 +13,7 @@ from typing import Tuple
 
 import datasets
 import torch
+import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 
 from src.data.input_preprocessor import custom_collate_compress, compress_attention_preprocessor
@@ -86,9 +87,17 @@ def main():
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+    parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
+    parser.add_argument('--dataset', type=str, required=True, help='Path under training_res')
+
+    args = parser.parse_args()
+
+    dataset = args.dataset
+
+
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/compress_chunk_qa_nopadding_multichunk20k_epoch2/checkpoint-1122")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "meta-llama/Llama-3.2-1B",
+        "training_res/compress_chunk_qa_nopadding_multichunk20k_epoch2/checkpoint-1122",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -105,17 +114,17 @@ def main():
         # max_memory_num=1
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_link", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process(dataset, preprocessor)
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/chunkcomp_qa_link",
+        output_dir=f"training_res/continue_{dataset}",
         report_to="wandb",
-        run_name=f"compress_chunk_{len(compress_tokens)}_qa_link",
+        run_name=f"compress_chunk_{len(compress_tokens)}_{dataset}",
         per_device_train_batch_size= batch_size_per_device,
-        num_train_epochs=2,
+        num_train_epochs=1,
         # max_steps=2500,
         logging_dir="training_res/logs",
         logging_steps=10,

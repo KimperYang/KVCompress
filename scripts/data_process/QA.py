@@ -31,11 +31,9 @@ def set_args():
 def main(argv):
     shards = {'train': 128, 'test': 4}
 
-    dataset = load_dataset('json', data_files="data/raw/block_qa/block_qa.jsonl")['train']
+    dataset = load_dataset('json', data_files="/mnt/data2/jingbo/Block-Attention/cache/hqa_train")
 
     total_num = len(dataset)
-    first_half = dataset.select(range(0, total_num // 2))
-    second_half = dataset.select(range(total_num // 2, total_num))
 
     tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B-Instruct")
     max_length = FLAGS.max_length
@@ -79,9 +77,9 @@ def main(argv):
         system_input_ids = tokenizer(system, add_special_tokens=False).input_ids
         input_ids = system_input_ids
 
-        if len(sample['documents']) != 10:
-            print("Context number not right")
-            return False
+        # if len(sample['documents']) != 10:
+        #     print("Context number not right")
+        #     return False
 
         for j in range(0,10):
             title = sample['documents'][j]['title']
@@ -102,7 +100,7 @@ def main(argv):
     qamem = dataset.filter(qamem_filter, num_proc=96)
     qamem = qamem.train_test_split(test_size=FLAGS.validation_size)
 
-    qamem.save_to_disk("dataset_cache/processed/compress_qa/qa_mem", num_shards=shards, num_proc=128)
+    qamem.save_to_disk("dataset_cache/processed/hqa", num_shards=shards, num_proc=128)
     print("qamem:", qamem)
 
 if __name__ == "__main__":
