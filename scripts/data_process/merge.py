@@ -1,7 +1,7 @@
+from datasets import DatasetDict, concatenate_datasets, load_from_disk
+
 dd1 = load_from_disk("dataset_cache/processed/compress_qa")
 dd2 = load_from_disk("dataset_cache/processed/hqa")
-
-from datasets import DatasetDict, concatenate_datasets
 
 merged = {}
 for split in dd1.keys() | dd2.keys():                 # union of split names
