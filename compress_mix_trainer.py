@@ -70,6 +70,7 @@ def load_from_disk_then_process(
         else:
             raise NotImplementedError()
         # remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
+        remove_columns = []
         num_shards = 32
     else:
         raise NotImplementedError()
