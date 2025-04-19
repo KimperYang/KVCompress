@@ -701,7 +701,7 @@ class compress_attention_preprocessor():
 
         doc_list = []
 
-        for k in range(0,10):
+        for k in range(len(example['documents'])):
             title = example['documents'][k]['title']
             text = example['documents'][k]['text']
             doc_list.append({'title': title, 'text':text})
@@ -712,7 +712,7 @@ class compress_attention_preprocessor():
         current_index = sys_len
 
         chunk_idx = 1
-        for j in range(0,10):
+        for j in range(len(example['documents'])):
 
             title = doc_list[j]['title']
             text = doc_list[j]['text']
@@ -783,7 +783,7 @@ class compress_attention_preprocessor():
 
         doc_list = []
 
-        for k in range(0,10):
+        for k in range(len(example['documents'])):
             title = example['documents'][k]['title']
             text = example['documents'][k]['text']
             doc_list.append({'title': title, 'text':text})
@@ -794,7 +794,7 @@ class compress_attention_preprocessor():
         current_index = sys_len
 
         chunk_idx = 1
-        for j in range(0,10):
+        for j in range(len(example['documents'])):
 
             title = doc_list[j]['title']
             text = doc_list[j]['text']

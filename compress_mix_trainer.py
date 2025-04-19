@@ -47,7 +47,7 @@ def load_from_disk_then_process(
             "file_path", "language", "language_score", "token_count",
         ]
         num_shards = 512
-    elif data_component_name in ["qa", "qa_compress", "qa_link", "qa_link_fix"]:
+    elif data_component_name in ["qa", "qa_compress", "qa_link", "qa_link_fix", "hqa_link", "hqa"]:
         if data_component_name == "qa":
             preprocessor_fn = preprocessor.process_qa_chunk_nopadding_compress
             data_path = "dataset_cache/processed/compress_qa"
@@ -57,6 +57,12 @@ def load_from_disk_then_process(
         elif data_component_name == "qa_link":
             preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink
             data_path = "dataset_cache/processed/compress_qa"
+        elif data_component_name == "hqa":
+            preprocessor_fn = preprocessor.process_qa_chunk_nopadding_compress
+            data_path = "dataset_cache/processed/hqa"
+        elif data_component_name == "hqa_link":
+            preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink
+            data_path = "dataset_cache/processed/hqa"
         elif data_component_name == "qa_link_fix":
             preprocessor_fn = preprocessor.process_qa_chunk_nopadding_kvlink_fix
             data_path = "dataset_cache/processed/compress_qa"
@@ -93,6 +99,13 @@ def main():
     batch_size_per_device = 4
     compress_tokens = list(range(128011, 128061))
 
+    parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
+    parser.add_argument('--dataset', type=str, required=True, help='Path under training_res')
+
+    args = parser.parse_args()
+
+    dataset = args.dataset
+
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
         "meta-llama/Llama-3.2-1B",
@@ -112,12 +125,14 @@ def main():
         # max_memory_num=1
     )
 
-    qa_train, qa_eval = load_from_disk_then_process("qa_link", preprocessor)
-    ptr_train, ptr_eval = load_from_disk_then_process("text_link", preprocessor)
+    qa_train, qa_eval = load_from_disk_then_process(dataset, preprocessor)
+    hqa_train, hqa_eval = load_from_disk_then_process("h" + dataset, preprocessor)
+    # ptr_train, ptr_eval = load_from_disk_then_process("text_link", preprocessor)
 
-    train_dataset = datasets.interleave_datasets([qa_train, ptr_train], probabilities=[0.5, 0.5], seed=42, stopping_strategy="all_exhausted")
+    train_dataset = datasets.interleave_datasets([qa_train, hqa_train], probabilities=[0.5, 0.5], seed=42, stopping_strategy="all_exhausted")
     eval_dataset = datasets.DatasetDict({
-        "text": ptr_eval,
+        # "text": ptr_eval,
+        "hqa": hqa_eval,
         "qa": qa_eval,
     })
 
@@ -125,9 +140,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/chunkcomp_link_mix_3k",
+        output_dir=f"training_res/chunkcomp_mix_{dataset}_3k",
         report_to="wandb",
-        run_name=f"compress_chunk_link_{len(compress_tokens)}_mix",
+        run_name=f"compress_chunk_link_{len(compress_tokens)}_mix__{dataset}",
         per_device_train_batch_size= batch_size_per_device,
         # num_train_epochs=2,
         max_steps=3000,
