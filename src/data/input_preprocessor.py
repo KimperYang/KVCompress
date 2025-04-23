@@ -1669,7 +1669,7 @@ class AnchorPreprocessor():
         labels = []
         for i in range(len(sentences)):
             tem_id = self.tokenizer(sentences[i], add_special_tokens=False).input_ids
-            if current_len + tem_id > self.max_len:
+            if current_len + len(tem_id) > self.max_len:
                 break
             
             input_ids += tem_id + [self.anchor]
