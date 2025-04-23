@@ -1683,3 +1683,36 @@ class AnchorPreprocessor():
             "segment_ids_2": segment_ids_2,
             "labels": labels
         }
+
+def custom_collate_anchor(batch):
+
+        input_ids = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        length_list = [len(x['input_ids']) for x in batch]
+
+        max_length = max(length_list)
+        for item in batch:
+
+            seq_length = len(item['input_ids'])
+            residual = max_length - seq_length
+
+            padded_input_ids = item['input_ids'] + [0] * residual
+            input_ids.append(padded_input_ids)
+
+            padded_segment_ids_1 = item['segment_ids_1'] + [-1] * residual
+            segment_ids_1.append(padded_segment_ids_1)
+
+            padded_segment_ids_2 = item['segment_ids_2'] + [-1] * residual
+            segment_ids_2.append(padded_segment_ids_2)
+
+            padded_labels = item['labels'] + [-100] * residual
+            labels.append(padded_labels)
+
+        return {
+            "input_ids": torch.LongTensor(input_ids),
+            "segment_ids_1": torch.LongTensor(segment_ids_1),
+            "segment_ids_2": torch.LongTensor(segment_ids_2),
+            "labels": torch.LongTensor(labels)
+        }

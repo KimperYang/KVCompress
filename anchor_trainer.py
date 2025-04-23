@@ -16,7 +16,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from functools import partial
 
-from src.data.input_preprocessor import custom_collate_compress, AnchorPreprocessor
+from src.data.input_preprocessor import custom_collate_anchor, AnchorPreprocessor
 from src.training.custom_trainer import AnchorTrainer
 
 
@@ -130,7 +130,7 @@ def main():
         args=training_args,
         train_dataset = train_dataset,
         eval_dataset = eval_dataset,
-        data_collator = custom_collate_compress
+        data_collator = custom_collate_anchor
     )
 
     trainer.train()
