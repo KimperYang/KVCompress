@@ -1646,3 +1646,40 @@ class kvlink_preprocessor():
             "labels": labels,
             "position_ids": position_ids,
         }
+    
+
+class AnchorPreprocessor():
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        max_len: int,
+        anchor_id: int
+    ) -> None:
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+        self.anchor = self.anchor_id
+
+    def process_ptr(self,example):
+
+        sentences = example['text'].split(". ")
+        current_len = 0
+        input_ids = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        for i in range(len(sentences)):
+            tem_id = self.tokenizer(sentences[i], add_special_tokens=False).input_ids
+            if current_len + tem_id > self.max_len:
+                break
+            
+            input_ids += tem_id + [self.anchor]
+            segment_ids_1 += [i+1] * (len(tem_id) + 1)
+            segment_ids_2 += [1] * len(tem_id) + [2]
+            labels += tem_id + [-100]
+
+        return {
+            "input_ids": input_ids,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels
+        }
