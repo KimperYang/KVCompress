@@ -1657,7 +1657,7 @@ class AnchorPreprocessor():
     ) -> None:
         self.tokenizer = tokenizer
         self.max_len = max_len
-        self.anchor = self.anchor_id
+        self.anchor = anchor_id
 
     def process_ptr(self,example):
 
