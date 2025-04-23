@@ -1677,6 +1677,8 @@ class AnchorPreprocessor():
             segment_ids_2 += [1] * len(tem_id) + [2]
             labels += tem_id + [-100]
 
+            current_len += len(tem_id) + 1
+
         return {
             "input_ids": input_ids,
             "segment_ids_1": segment_ids_1,

@@ -35,6 +35,6 @@ class AnchorTrainer(Trainer):
             dtype=torch.bfloat16,           # For printing, let's keep float
             allow_self=True     # No causal mask for clarity
         )
-        outputs = model(input_ids = inputs['input_ids'], attention_mask = mask.unsqueeze(0).unsqueeze(0), labels = inputs['labels'])
+        outputs = model(input_ids = inputs['input_ids'], attention_mask = mask.unsqueeze(1), labels = inputs['labels'])
         torch.cuda.empty_cache()
         return (outputs.loss, outputs) if return_outputs else outputs.loss
