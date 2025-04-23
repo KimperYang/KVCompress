@@ -28,10 +28,10 @@ class AnchorTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
 
         mask = make_anchor_attention(
-            source_segments_1=inputs['segment_ids_1'],
-            target_segments_1=inputs['segment_ids_1'],
-            source_segments_2=inputs['segment_ids_2'],
-            target_segments_2=inputs['segment_ids_2'],
+            first_source=inputs['segment_ids_1'],
+            first_target=inputs['segment_ids_1'],
+            second_source=inputs['segment_ids_2'],
+            second_target=inputs['segment_ids_2'],
             dtype=torch.bfloat16,           # For printing, let's keep float
             allow_self=True     # No causal mask for clarity
         )
