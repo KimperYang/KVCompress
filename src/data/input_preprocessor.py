@@ -1666,6 +1666,7 @@ class AnchorPreprocessor():
         input_ids = []
         segment_ids_1 = []
         segment_ids_2 = []
+        chunk_ids = []
         labels = []
         for i in range(len(sentences)):
             tem_id = self.tokenizer(sentences[i], add_special_tokens=False).input_ids
@@ -1675,6 +1676,7 @@ class AnchorPreprocessor():
             input_ids += tem_id + [self.anchor]
             segment_ids_1 += [i+1] * (len(tem_id) + 1)
             segment_ids_2 += [1] * len(tem_id) + [2]
+            chunk_ids += [0] * (len(tem_id) + 1)
             labels += tem_id + [-100]
 
             current_len += len(tem_id) + 1
@@ -1683,6 +1685,7 @@ class AnchorPreprocessor():
             "input_ids": input_ids,
             "segment_ids_1": segment_ids_1,
             "segment_ids_2": segment_ids_2,
+            "chunk_ids": chunk_ids,
             "labels": labels
         }
 
@@ -1691,6 +1694,7 @@ def custom_collate_anchor(batch):
         input_ids = []
         segment_ids_1 = []
         segment_ids_2 = []
+        chunk_ids = []
         labels = []
         length_list = [len(x['input_ids']) for x in batch]
 
@@ -1709,6 +1713,9 @@ def custom_collate_anchor(batch):
             padded_segment_ids_2 = item['segment_ids_2'] + [-1] * residual
             segment_ids_2.append(padded_segment_ids_2)
 
+            padded_chunk_ids = item["chunk_ids"] + [-1] * residual
+            chunk_ids.append(padded_chunk_ids)
+
             padded_labels = item['labels'] + [-100] * residual
             labels.append(padded_labels)
 
@@ -1716,5 +1723,6 @@ def custom_collate_anchor(batch):
             "input_ids": torch.LongTensor(input_ids),
             "segment_ids_1": torch.LongTensor(segment_ids_1),
             "segment_ids_2": torch.LongTensor(segment_ids_2),
+            "chunk_ids": torch.LongTensor(chunk_ids),
             "labels": torch.LongTensor(labels)
         }
