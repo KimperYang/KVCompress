@@ -1653,11 +1653,24 @@ class AnchorPreprocessor():
         self,
         tokenizer: PreTrainedTokenizerBase,
         max_len: int,
-        anchor_id: int
+        anchor_id: int,
+        link_token_start = 128012,
+        link_token_num = 5
     ) -> None:
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.anchor = anchor_id
+        self.global_start_token: int = 128254
+        self.global_end_token: int = 128255
+        self.do_shuffle = True
+        self.link_token_num = link_token_num
+        self.link_tokens = [
+            [
+                link_token_start + idx * self.link_token_num + offset
+                for offset in range(self.link_token_num)
+            ]
+            for idx in range(10)
+        ]
 
     def process_ptr(self,example):
 
@@ -1680,6 +1693,139 @@ class AnchorPreprocessor():
             labels += tem_id + [-100]
 
             current_len += len(tem_id) + 1
+
+        return {
+            "input_ids": input_ids,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "chunk_ids": chunk_ids,
+            "labels": labels
+        }
+
+    def process_qa(self,example):
+        input_ids = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        chunk_ids = []
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(qa_prompts)
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids + [self.global_start_token]
+        sys_len = len(system_input_ids)
+
+        input_ids.extend(system_input_ids)
+        segment_ids_1.extend([0] * sys_len)
+        segment_ids_2.extend([0] * sys_len)
+        chunk_ids.extend([-1] * sys_len)
+
+        doc_list = []
+
+        for k in range(0,10):
+            title = example['documents'][k]['title']
+            text = example['documents'][k]['text']
+            doc_list.append({'title': title, 'text':text})
+
+        if self.do_shuffle:
+            random.shuffle(doc_list)
+
+        for i in range(0,10):
+            title = doc_list[i]['title']
+            text = doc_list[i]['text']
+            context = f"Document [{i+1}](Title: {title}) {text}\n"
+
+            sentences = context.split(". ")
+            for j in range(len(sentences)):
+                tem_id = self.tokenizer(sentences[j], add_special_tokens=False).input_ids
+                
+                input_ids += tem_id + [self.anchor]
+                segment_ids_1 += [j+1] * (len(tem_id) + 1)
+                segment_ids_2 += [1] * len(tem_id) + [2]
+                chunk_ids += [i] * (len(tem_id) + 1)
+                
+        user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        user_id = [self.global_end_token] + self.tokenizer(user, add_special_tokens=False).input_ids
+        user_len = len(user_id)
+        segment_ids_1.extend([0] * user_len)
+        segment_ids_2.extend([0] * user_len)
+        chunk_ids.extend([-1] * user_len)
+        input_ids.extend(user_id)
+
+        ans_id = self.tokenizer(example['generated'] + "<|eot_id|>", add_special_tokens=False).input_ids
+        ans_len = len(ans_id)
+        segment_ids_1.extend([0] * ans_len)
+        segment_ids_2.extend([0] * ans_len)
+        chunk_ids.extend([-1] * ans_len)
+        input_ids.extend(ans_id)
+
+        labels = [-100] * (len(input_ids) - ans_len) + ans_id
+
+        return {
+            "input_ids": input_ids,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "chunk_ids": chunk_ids,
+            "labels": labels
+        }
+
+    def process_qa_link(self,example):
+        input_ids = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        chunk_ids = []
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(qa_prompts)
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids + [self.global_start_token]
+        sys_len = len(system_input_ids)
+
+        input_ids.extend(system_input_ids)
+        segment_ids_1.extend([0] * sys_len)
+        segment_ids_2.extend([0] * sys_len)
+        chunk_ids.extend([-1] * sys_len)
+
+        doc_list = []
+
+        for k in range(0,10):
+            title = example['documents'][k]['title']
+            text = example['documents'][k]['text']
+            doc_list.append({'title': title, 'text':text})
+
+        if self.do_shuffle:
+            random.shuffle(doc_list)
+
+        for i in range(0,10):
+            title = doc_list[i]['title']
+            text = doc_list[i]['text']
+            context = f"Document [{i+1}](Title: {title}) {text}\n"
+
+            sentences = context.split(". ")
+            for j in range(len(sentences)):
+                tem_id = self.tokenizer(sentences[j], add_special_tokens=False).input_ids
+                
+                input_ids += tem_id + [self.anchor]
+                segment_ids_1 += [j+1] * (len(tem_id) + 1)
+                segment_ids_2 += [1] * len(tem_id) + [2]
+                chunk_ids += [i] * (len(tem_id) + 1)
+            
+            input_ids += self.link_tokens[i]
+            segment_ids_1 += [0] * self.link_token_num
+            segment_ids_2 += [0] * self.link_token_num
+            chunk_ids += [-1] * self.link_token_num
+                
+        user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        user_id = [self.global_end_token] + self.tokenizer(user, add_special_tokens=False).input_ids
+        user_len = len(user_id)
+        segment_ids_1.extend([0] * user_len)
+        segment_ids_2.extend([0] * user_len)
+        chunk_ids.extend([-1] * user_len)
+        input_ids.extend(user_id)
+
+        ans_id = self.tokenizer(example['generated'] + "<|eot_id|>", add_special_tokens=False).input_ids
+        ans_len = len(ans_id)
+        segment_ids_1.extend([0] * ans_len)
+        segment_ids_2.extend([0] * ans_len)
+        chunk_ids.extend([-1] * ans_len)
+        input_ids.extend(ans_id)
+
+        labels = [-100] * (len(input_ids) - ans_len) + ans_id
 
         return {
             "input_ids": input_ids,

@@ -66,9 +66,9 @@ def load_from_disk_then_process(
 def main():
     batch_size_per_device = 4
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/anchor_1B/checkpoint-4000")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/anchor_1B/checkpoint-4000",
+        "meta-llama/Llama-3.2-1B",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -80,23 +80,23 @@ def main():
         anchor_id=128011
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
-    # data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/anchor")
-    # train_dataset, eval_dataset = data_component["train"], data_component["test"]
+    # train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
+    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/anchor")
+    train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/anchor_qa_2epoch",
+        output_dir="training_res/anchor_ptr_10k",
         report_to="wandb",
-        run_name=f"anchor_qa",
+        run_name=f"anchor_ptr_10k",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
-        # max_steps=4000,
+        max_steps=10000,
         logging_dir="training_res/logs",
         logging_steps=10,
-        # save_steps=1000,
+        save_steps=1000,
         gradient_accumulation_steps=2,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
@@ -104,8 +104,8 @@ def main():
         learning_rate=5e-6,
         do_eval=True,
         per_device_eval_batch_size = batch_size_per_device,
-        evaluation_strategy="epoch",  # Add this line
-        # eval_steps=5000,
+        evaluation_strategy="steps",  # Add this line
+        eval_steps=5000,
         gradient_checkpointing=True,
         save_total_limit=1,
         # overwrite_output_dir = False
