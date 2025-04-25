@@ -31,7 +31,7 @@ def load_from_disk_then_process(
         data_path = "dataset_cache/processed/compress_qa"
         if data_component_name == "qa":
             preprocessor_fn = preprocessor.process_qa
-        elif data_component_name == "text_singlechunk":
+        elif data_component_name == "qa_link":
             preprocessor_fn = preprocessor.process_qa_link
         else:
             raise NotImplementedError()
@@ -47,7 +47,7 @@ def load_from_disk_then_process(
         preprocessor_fn,
         remove_columns=remove_columns,
         num_proc=96,
-        batched=True,
+        batched=False,
         load_from_cache_file=True
     )
 
@@ -56,7 +56,7 @@ def load_from_disk_then_process(
         preprocessor_fn,
         remove_columns=remove_columns,
         num_proc=96,
-        batched=True,
+        batched=False,
         load_from_cache_file=True
     )
 

@@ -1720,8 +1720,6 @@ class AnchorPreprocessor():
         doc_list = []
 
         for k in range(0,10):
-            # import ipdb
-            # ipdb.set_trace()
             title = example['documents'][k]['title']
             text = example['documents'][k]['text']
             doc_list.append({'title': title, 'text':text})
