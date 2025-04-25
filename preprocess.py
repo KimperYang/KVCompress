@@ -32,10 +32,12 @@ def load_from_disk_then_process(
             "file_path", "language", "language_score", "token_count",
         ]
         num_shards = 512
-    elif data_component_name in ["qa_link"]:
+    if data_component_name in ["qa", "qa_link"]:
         data_path = "dataset_cache/processed/compress_qa"
-        if data_component_name == "qa_link":
-            preprocessor_fn = preprocessor.process_qa_kvlink
+        if data_component_name == "qa":
+            preprocessor_fn = preprocessor.process_qa
+        elif data_component_name == "text_singlechunk":
+            preprocessor_fn = preprocessor.process_qa_link
         else:
             raise NotImplementedError()
         remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
@@ -49,7 +51,7 @@ def load_from_disk_then_process(
     training_data = streaming_train_dataset.map(
         preprocessor_fn,
         remove_columns=remove_columns,
-        num_proc=96,
+        # num_proc=96,
         batched=False,
     )
 
@@ -157,7 +159,7 @@ def main():
         anchor_id=128011
     )
 
-    train_set, test_set = load_from_disk_then_process("text_multichunk", preprocessor)
+    train_set, test_set = load_from_disk_then_process("qa", preprocessor)
     dataset = datasets.DatasetDict({'train': train_set, 'test': test_set})
     shards = {'train': 128, 'test': 4}
     dataset.save_to_disk("dataset_cache/processed/fineweb/anchor", num_shards=shards, num_proc=128)
