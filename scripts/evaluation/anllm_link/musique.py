@@ -30,7 +30,7 @@ link_tokens = [
         link_token_start + idx * link_token_num + offset
         for offset in range(link_token_num)
     ]
-    for idx in range(10)
+    for idx in range(20)
 ]
 
 data=load_dataset("dgslibisey/MuSiQue", split='validation')
