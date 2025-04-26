@@ -13,11 +13,24 @@ import argparse
 parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
 parser.add_argument('--run', type=str, required=True, help='Path under training_res')
 parser.add_argument('--ckpt', type=int, required=True, help='Checkpoint number')
+parser.add_argument('--reencode', type=int, required=True, help='Reencode num')
 
 args = parser.parse_args()
 
 run_name = args.run
 ckpt = args.ckpt
+reencode_num = args.reencode
+
+link_token_num = reencode_num
+link_token_start = 128012
+
+link_tokens = [
+    [
+        link_token_start + idx * link_token_num + offset
+        for offset in range(link_token_num)
+    ]
+    for idx in range(10)
+]
 
 file_path = "data/wiki/dev.json"
 with open(file_path, 'r') as file:
@@ -140,6 +153,10 @@ def main():
                 segment_ids_2 += [1] * len(tem_id) + [2]
                 chunk_ids += [idx] * (len(tem_id) + 1)
 
+            input_ids += link_tokens[idx]
+            segment_ids_1 += [0] * link_token_num
+            segment_ids_2 += [0] * link_token_num
+            chunk_ids += [-1] * link_token_num
 
         user_prompt = data[i]['question'] + "<|eot_id|>"
         user_id = [mem_end] + global_tokenizer(user_prompt, add_special_tokens=False).input_ids
@@ -209,7 +226,7 @@ def main():
     current_time = datetime.datetime.now()
     time_str = current_time.strftime("%Y%m%d-%H%M%S")
 
-    file_name = f"result/anllm/wiki_ckpt{ckpt}_{accuracy}_{time_str}.jsonl"
+    file_name = f"result/anllm_link/wiki_ckpt{ckpt}_{accuracy}_{time_str}_{reencode_num}.jsonl"
 
     with open(file_name, 'w', encoding='utf-8') as f:
         for entry in res_list:

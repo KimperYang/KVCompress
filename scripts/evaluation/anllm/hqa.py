@@ -14,13 +14,11 @@ import argparse
 parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
 parser.add_argument('--run', type=str, required=True, help='Path under training_res')
 parser.add_argument('--ckpt', type=int, required=True, help='Checkpoint number')
-parser.add_argument('--reencode', type=int, required=True, help='Reencode num')
 
 args = parser.parse_args()
 
 run_name = args.run
 ckpt = args.ckpt
-reencode_num = args.reencode
 
 data=load_dataset("hotpotqa/hotpot_qa", 'distractor', split='validation')
 
@@ -127,10 +125,10 @@ def main():
         chunk_ids.extend([-1] * sys_len)
 
 
-        for i in range(0,10):
-            title = doc_list[i]['title']
-            text = doc_list[i]['text']
-            context = f"Document [{i+1}](Title: {title}) {text}\n"
+        for idx in range(0,10):
+            title = doc_list[idx]['title']
+            text = doc_list[idx]['text']
+            context = f"Document [{idx+1}](Title: {title}) {text}\n"
 
             sentences = context.split(". ")
             for j in range(len(sentences)):
@@ -139,7 +137,7 @@ def main():
                 input_ids += tem_id + [anchor_id]
                 segment_ids_1 += [j+1] * (len(tem_id) + 1)
                 segment_ids_2 += [1] * len(tem_id) + [2]
-                chunk_ids += [i] * (len(tem_id) + 1)
+                chunk_ids += [idx] * (len(tem_id) + 1)
 
 
         user_prompt = data[i]['question'] + "<|eot_id|>"
@@ -210,7 +208,7 @@ def main():
     current_time = datetime.datetime.now()
     time_str = current_time.strftime("%Y%m%d-%H%M%S")
 
-    file_name = f"result/anllm/wiki_ckpt{ckpt}_{accuracy}_{time_str}_{reencode_num}.jsonl"
+    file_name = f"result/anllm/hqa_ckpt{ckpt}_{accuracy}_{time_str}.jsonl"
 
     with open(file_name, 'w', encoding='utf-8') as f:
         for entry in res_list:

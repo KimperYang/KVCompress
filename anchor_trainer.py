@@ -13,6 +13,7 @@ from typing import Tuple
 
 import datasets
 import torch
+import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from functools import partial
 
@@ -65,10 +66,16 @@ def load_from_disk_then_process(
 
 def main():
     batch_size_per_device = 4
+    parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
+    parser.add_argument('--dataset', type=str, required=True, help='Path under training_res')
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/anchor_ptr_10k/checkpoint-10000")
+    args = parser.parse_args()
+
+    dataset = args.dataset
+
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/anchor_qa_10k/checkpoint-1122")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/anchor_ptr_10k/checkpoint-10000",
+        "training_res/anchor_qa_10k/checkpoint-1122",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -80,7 +87,7 @@ def main():
         anchor_id=128011
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process(dataset, preprocessor)
     # data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/anchor")
     # train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
@@ -88,11 +95,11 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/anchor_qa_10k",
+        output_dir=f"training_res/anchor_continue_{dataset}_10k",
         report_to="wandb",
-        run_name=f"anchor_qa_10k",
+        run_name=f"anchor_continue_{dataset}_10k",
         per_device_train_batch_size= batch_size_per_device,
-        num_train_epochs=2,
+        num_train_epochs=1,
         # max_steps=4000,
         logging_dir="training_res/logs",
         logging_steps=10,

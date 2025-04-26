@@ -8,6 +8,7 @@ from typing import List
 from tqdm import tqdm
 import regex
 from src.data.attention import make_anchor_attention
+from datasets import load_dataset
 import argparse
 
 parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
@@ -19,9 +20,7 @@ args = parser.parse_args()
 run_name = args.run
 ckpt = args.ckpt
 
-file_path = "data/wiki/dev.json"
-with open(file_path, 'r') as file:
-    data = json.load(file)
+data=load_dataset("dgslibisey/MuSiQue", split='validation')
 
 global_tokenizer = AutoTokenizer.from_pretrained(f"{run_name}/checkpoint-{ckpt}")
 
@@ -111,9 +110,9 @@ def main():
 
         doc_list = []
 
-        for k in range(0,10):
-            title = data[i]['context'][j][0]
-            text = " ".join(data[i]['context'][j][1])
+        for j in range(len(data[i]['paragraphs'])):
+            title = data[i]['paragraphs'][j]['title']
+            text = data[i]['paragraphs'][j]['paragraph_text']
             doc_list.append({'title': title, 'text':text})
 
         sys_ids = global_tokenizer(template, add_special_tokens=False).input_ids
@@ -209,7 +208,7 @@ def main():
     current_time = datetime.datetime.now()
     time_str = current_time.strftime("%Y%m%d-%H%M%S")
 
-    file_name = f"result/anllm/wiki_ckpt{ckpt}_{accuracy}_{time_str}.jsonl"
+    file_name = f"result/anllm/musique_ckpt{ckpt}_{accuracy}_{time_str}.jsonl"
 
     with open(file_name, 'w', encoding='utf-8') as f:
         for entry in res_list:

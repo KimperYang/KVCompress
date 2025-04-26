@@ -8,20 +8,32 @@ from typing import List
 from tqdm import tqdm
 import regex
 from src.data.attention import make_anchor_attention
+from datasets import load_dataset
 import argparse
 
 parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
 parser.add_argument('--run', type=str, required=True, help='Path under training_res')
 parser.add_argument('--ckpt', type=int, required=True, help='Checkpoint number')
+parser.add_argument('--reencode', type=int, required=True, help='Reencode num')
 
 args = parser.parse_args()
 
 run_name = args.run
 ckpt = args.ckpt
+reencode_num = args.reencode
 
-file_path = "data/wiki/dev.json"
-with open(file_path, 'r') as file:
-    data = json.load(file)
+link_token_num = reencode_num
+link_token_start = 128012
+
+link_tokens = [
+    [
+        link_token_start + idx * link_token_num + offset
+        for offset in range(link_token_num)
+    ]
+    for idx in range(10)
+]
+
+data=load_dataset("hotpotqa/hotpot_qa", 'distractor', split='validation')
 
 global_tokenizer = AutoTokenizer.from_pretrained(f"{run_name}/checkpoint-{ckpt}")
 
@@ -111,9 +123,9 @@ def main():
 
         doc_list = []
 
-        for k in range(0,10):
-            title = data[i]['context'][j][0]
-            text = " ".join(data[i]['context'][j][1])
+        for j in range(len(data[i]['context']['title'])):
+            title = data[i]['context']['title'][j]
+            text = ''.join(data[i]['context']['sentences'][j])
             doc_list.append({'title': title, 'text':text})
 
         sys_ids = global_tokenizer(template, add_special_tokens=False).input_ids
@@ -140,6 +152,10 @@ def main():
                 segment_ids_2 += [1] * len(tem_id) + [2]
                 chunk_ids += [idx] * (len(tem_id) + 1)
 
+            input_ids += link_tokens[idx]
+            segment_ids_1 += [0] * link_token_num
+            segment_ids_2 += [0] * link_token_num
+            chunk_ids += [-1] * link_token_num
 
         user_prompt = data[i]['question'] + "<|eot_id|>"
         user_id = [mem_end] + global_tokenizer(user_prompt, add_special_tokens=False).input_ids
@@ -209,7 +225,7 @@ def main():
     current_time = datetime.datetime.now()
     time_str = current_time.strftime("%Y%m%d-%H%M%S")
 
-    file_name = f"result/anllm/wiki_ckpt{ckpt}_{accuracy}_{time_str}.jsonl"
+    file_name = f"result/anllm_link/hqa_ckpt{ckpt}_{accuracy}_{time_str}_{reencode_num}.jsonl"
 
     with open(file_name, 'w', encoding='utf-8') as f:
         for entry in res_list:
