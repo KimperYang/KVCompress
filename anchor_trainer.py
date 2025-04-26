@@ -66,9 +66,9 @@ def load_from_disk_then_process(
 def main():
     batch_size_per_device = 4
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/anchor_1B/checkpoint-4000")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/anchor_ptr_10k/checkpoint-10000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/anchor_1B/checkpoint-4000",
+        "training_res/anchor_ptr_10k/checkpoint-10000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -88,9 +88,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/anchor_qa_2epoch",
+        output_dir="training_res/anchor_qa_10k",
         report_to="wandb",
-        run_name=f"anchor_qa",
+        run_name=f"anchor_qa_10k",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         # max_steps=4000,

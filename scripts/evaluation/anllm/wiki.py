@@ -13,21 +13,17 @@ import argparse
 parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
 parser.add_argument('--run', type=str, required=True, help='Path under training_res')
 parser.add_argument('--ckpt', type=int, required=True, help='Checkpoint number')
-parser.add_argument('--pos', type=int, required=True, help='Position value')
 parser.add_argument('--reencode', type=int, required=True, help='Reencode num')
 
 args = parser.parse_args()
 
 run_name = args.run
 ckpt = args.ckpt
-pos = args.pos
 reencode_num = args.reencode
 
-if pos in [0, 4, 9]:
-    jsonObj = pd.read_json(path_or_buf=f'data/raw/nq/nq-open-10_{pos}.jsonl', lines=True)
-else:
-    jsonObj = pd.read_json(path_or_buf='data/raw/nq/nq-open-10_0.jsonl', lines=True)
-
+file_path = "data/wiki/dev.json"
+with open(file_path, 'r') as file:
+    data = json.load(file)
 
 global_tokenizer = AutoTokenizer.from_pretrained(f"{run_name}/checkpoint-{ckpt}")
 
@@ -105,8 +101,7 @@ def main():
     mem_end=128255
 
     template = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a intelligent AI assistant. Please answer questions based on the user's instruction. Below are some reference documents that may help you in answering the user's question.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
-    # total_num = len(jsonObj)
-    total_num = 500
+    total_num = len(data)
     correct_num = 0
     res_list = []
 
@@ -119,13 +114,9 @@ def main():
         doc_list = []
 
         for k in range(0,10):
-            title = jsonObj["ctxs"][i][k]["title"]
-            text = jsonObj["ctxs"][i][k]["text"]
+            title = data[i]['context'][j][0]
+            text = " ".join(data[i]['context'][j][1])
             doc_list.append({'title': title, 'text':text})
-
-        if pos not in [0,4,9]:
-            ground_truth = doc_list.pop(0)
-            doc_list.insert(pos, ground_truth)
 
         sys_ids = global_tokenizer(template, add_special_tokens=False).input_ids
         system_input_ids = sys_ids + [mem_start]
@@ -152,7 +143,7 @@ def main():
                 chunk_ids += [idx] * (len(tem_id) + 1)
 
 
-        user_prompt = jsonObj["question"][i] + "<|eot_id|>"
+        user_prompt = data[i]['question'] + "<|eot_id|>"
         user_id = [mem_end] + global_tokenizer(user_prompt, add_special_tokens=False).input_ids
         user_len = len(user_id)
         segment_ids_1.extend([0] * user_len)
@@ -204,14 +195,14 @@ def main():
         generated_seq = global_tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
         response = generated_seq[0].split('assistant\n\n')[-1]
-        print(jsonObj["question"][i])
+        print(data[i]['question'])
         print(response)
 
-        score = best_subspan_em(response, jsonObj["answers"][i])
+        score = best_subspan_em(response, [data[i]["answer"]])
 
         correct_num = correct_num + int(score)
 
-        res_list.append({"id": str(i),"question": jsonObj["question"][i], "response": response, "gold_answer": jsonObj["answers"][i], "Score": score})
+        res_list.append({"id": str(i),"question": data[i]['question'], "response": response, "gold_answer": [data[i]["answer"]], "Score": score})
         print("Accuracy", correct_num / (i+1))
 
     accuracy = correct_num / total_num
@@ -220,7 +211,7 @@ def main():
     current_time = datetime.datetime.now()
     time_str = current_time.strftime("%Y%m%d-%H%M%S")
 
-    file_name = f"result/anllm/NQ_ckpt{ckpt}_at{pos}_{accuracy}_{time_str}_{reencode_num}.jsonl"
+    file_name = f"result/anllm/wiki_ckpt{ckpt}_{accuracy}_{time_str}_{reencode_num}.jsonl"
 
     with open(file_name, 'w', encoding='utf-8') as f:
         for entry in res_list:
