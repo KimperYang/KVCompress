@@ -124,7 +124,7 @@ def main():
 
         doc_list = []
 
-        for k in range(0,10):
+        for j in range(0,10):
             title = data[i]['context'][j][0]
             text = " ".join(data[i]['context'][j][1])
             doc_list.append({'title': title, 'text':text})

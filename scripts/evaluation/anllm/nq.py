@@ -22,9 +22,9 @@ ckpt = args.ckpt
 pos = args.pos
 
 if pos in [0, 4, 9]:
-    jsonObj = pd.read_json(path_or_buf=f'data/raw/nq/nq-open-10_{pos}.jsonl', lines=True)
+    jsonObj = pd.read_json(path_or_buf=f'data/nq/nq-open-10_{pos}.jsonl', lines=True)
 else:
-    jsonObj = pd.read_json(path_or_buf='data/raw/nq/nq-open-10_0.jsonl', lines=True)
+    jsonObj = pd.read_json(path_or_buf='data/nq/nq-open-10_0.jsonl', lines=True)
 
 
 global_tokenizer = AutoTokenizer.from_pretrained(f"{run_name}/checkpoint-{ckpt}")

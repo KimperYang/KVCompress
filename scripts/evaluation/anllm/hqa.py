@@ -125,7 +125,7 @@ def main():
         chunk_ids.extend([-1] * sys_len)
 
 
-        for idx in range(0,10):
+        for idx in range(len(data[i]['context']['title'])):
             title = doc_list[idx]['title']
             text = doc_list[idx]['text']
             context = f"Document [{idx+1}](Title: {title}) {text}\n"
