@@ -74,23 +74,26 @@ def main():
         # use_flash_attention_2=True,
     )
 
+    anchor_id = list(range(128011, 128016))
+
     preprocessor = AnchorPreprocessor(
         tokenizer=global_tokenizer,
         max_len=4096,
-        anchor_id=128011
+        anchor_id=anchor_id,
+        anchor_num=len(anchor_id)
     )
 
     # train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
-    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/anchor")
+    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/anchor_5")
     train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir="training_res/anchor_ptr_10k",
+        output_dir="training_res/anchor_5_ptr_10k",
         report_to="wandb",
-        run_name=f"anchor_ptr_10k",
+        run_name=f"anchor_5_ptr_10k",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         max_steps=10000,

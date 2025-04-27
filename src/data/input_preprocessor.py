@@ -1653,13 +1653,15 @@ class AnchorPreprocessor():
         self,
         tokenizer: PreTrainedTokenizerBase,
         max_len: int,
-        anchor_id: int,
+        anchor_id,
+        anchor_num,
         link_token_start = 128012,
         link_token_num = 5
     ) -> None:
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.anchor = anchor_id
+        self.anchor_num = anchor_num
         self.global_start_token: int = 128254
         self.global_end_token: int = 128255
         self.do_shuffle = True
@@ -1686,13 +1688,13 @@ class AnchorPreprocessor():
             if current_len + len(tem_id) > self.max_len:
                 break
             
-            input_ids += tem_id + [self.anchor]
-            segment_ids_1 += [i+1] * (len(tem_id) + 1)
-            segment_ids_2 += [1] * len(tem_id) + [2]
-            chunk_ids += [0] * (len(tem_id) + 1)
-            labels += tem_id + [-100]
+            input_ids += tem_id + self.anchor
+            segment_ids_1 += [i+1] * (len(tem_id) + self.anchor_num)
+            segment_ids_2 += [1] * len(tem_id) + [2] * self.anchor_num
+            chunk_ids += [0] * (len(tem_id) + self.anchor_num)
+            labels += tem_id + [-100] * self.anchor_num
 
-            current_len += len(tem_id) + 1
+            current_len += len(tem_id) + self.anchor_num
 
         return {
             "input_ids": input_ids,

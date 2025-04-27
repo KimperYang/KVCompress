@@ -153,16 +153,19 @@ def main():
     #     max_chunk_num = 20,
     # )
 
+    anchor_id = list(range(128011, 128016))
+
     preprocessor = AnchorPreprocessor(
         tokenizer=global_tokenizer,
         max_len=4096,
-        anchor_id=128011
+        anchor_id=anchor_id,
+        anchor_num=len(anchor_id)
     )
 
-    train_set, test_set = load_from_disk_then_process("qa", preprocessor)
+    train_set, test_set = load_from_disk_then_process("text_multichunk", preprocessor)
     dataset = datasets.DatasetDict({'train': train_set, 'test': test_set})
     shards = {'train': 128, 'test': 4}
-    dataset.save_to_disk("dataset_cache/processed/fineweb/anchor", num_shards=shards, num_proc=128)
+    dataset.save_to_disk("dataset_cache/processed/fineweb/anchor_5", num_shards=shards, num_proc=128)
 
 
 if __name__ == "__main__":
