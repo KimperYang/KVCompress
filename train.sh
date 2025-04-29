@@ -1,5 +1,5 @@
 # python preprocess.py
-accelerate launch --config_file config/step2.yaml --main_process_port 25671 chunkaug_ptr_trainer.py
+accelerate launch --config_file config/debug.yaml --main_process_port 25671 chunkaug_ptr_trainer.py
 # accelerate launch --config_file config/step2.yaml --main_process_port 25671 compress_mix_trainer.py --dataset "qa"
 
 # CUDA_VISIBLE_DEVICES=1 python scripts/evaluation/chunk_nopadding/tqa_eval.py --run "chunkcomp_qa" --ckpt 1122 &
