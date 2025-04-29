@@ -1874,3 +1874,142 @@ def custom_collate_anchor(batch):
             "chunk_ids": torch.LongTensor(chunk_ids),
             "labels": torch.LongTensor(labels)
         }
+
+class chunkaug_attention_preprocessor():
+    '''
+    Apply one piece of memory to non-memory use samples to enable batch forward pass for calculating KV.
+    '''
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        max_len: int,
+        compress_tokens: list[int],
+        chunk_size:int,
+        chunk_end_token: int,
+        do_shuffle: bool,
+        global_start_token: int = 128254,
+        global_end_token: int = 128255,
+        pad_token: int = 128004,
+        link_token_num: int = 1,
+        max_memory_num: int = 50
+    ) -> None:
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+        self.compress_tokens = compress_tokens
+        self.chunk_size = chunk_size
+        self.chunk_end_token = chunk_end_token
+        self.do_shuffle = do_shuffle
+        self.global_start_token = global_start_token
+        self.global_end_token = global_end_token
+        self.pad_token = pad_token
+        self.link_token_num = link_token_num
+
+        link_token_start = self.compress_tokens[-1] + 1
+        self.link_tokens = [
+            [
+                link_token_start + idx * self.link_token_num + offset
+                for offset in range(self.link_token_num)
+            ]
+            for idx in range(max_memory_num)
+        ]
+
+    def process_pretraining_multichunk_completion_compress(
+        self,
+        example
+    ):
+        text_tokens = self.tokenizer(example['text'], add_special_tokens=False).input_ids[:self.max_len]
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        chunk_index_ids = []
+        labels = []
+        position_ids = []
+        chunk_num = random.randint(5,20)
+        remaining_ids = text_tokens[chunk_num * self.chunk_size:]
+        remaining_len = len(remaining_ids)
+
+        bos_tokens = self.tokenizer("").input_ids
+        output_sequence.extend(bos_tokens + [self.global_start_token])
+        segment_ids_1.extend([0]*2)
+        segment_ids_2.extend([3]*2)
+        chunk_index_ids.extend([-1]*2)
+        labels.extend([-100]*2)
+        position_ids.extend([0,1])
+
+        current_position = 2
+        for i in range(chunk_num):
+            chunk_counter = i+1
+            chunk_ids = text_tokens[i * self.chunk_size : i * self.chunk_size + self.chunk_size] + [self.chunk_end_token]
+            chunk_len = len(chunk_ids)
+
+            segment_ids_1.extend([chunk_counter] * (chunk_len + len(self.compress_tokens)))
+
+            segment_ids_2.extend([1] * chunk_len + [2] * len(self.compress_tokens))
+
+            chunk_index_ids.extend([0] * (chunk_len + len(self.compress_tokens)))
+
+            labels.extend([-100] * (chunk_len + len(self.compress_tokens)))
+
+            position_ids.extend(list(range(current_position - chunk_len, current_position + len(self.compress_tokens))))
+            current_position += len(self.compress_tokens)
+
+            output_sequence.extend(chunk_ids + self.compress_tokens)
+
+        output_sequence.extend([self.global_end_token] + remaining_ids)
+        segment_ids_1.extend([0] * (1 + remaining_len))
+        segment_ids_2.extend([3] * (1 + remaining_len))
+        chunk_index_ids.extend([-1] * (1 + remaining_len))
+        labels.extend([-100] + remaining_ids)
+        position_ids.extend(list(range(current_position, current_position + 1 + remaining_len)))
+
+        return {
+            "input_ids": output_sequence[:self.max_len],
+            "segment_ids_1": segment_ids_1[:self.max_len],
+            "segment_ids_2": segment_ids_2[:self.max_len],
+            "labels": labels[:self.max_len],
+            "chunk_ids": chunk_index_ids[:self.max_len],
+            "position_ids": position_ids[:self.max_len],
+        }
+    
+def custom_collate_chunkaug(batch):
+
+        input_ids = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        chunk_ids = []
+        labels = []
+        position_ids = []
+        length_list = [len(x['input_ids']) for x in batch]
+
+        max_length = max(length_list)
+        for item in batch:
+
+            seq_length = len(item['input_ids'])
+            residual = max_length - seq_length
+
+            padded_input_ids = item['input_ids'] + [0] * residual
+            input_ids.append(padded_input_ids)
+
+            padded_segment_ids_1 = item['segment_ids_1'] + [-1] * residual
+            segment_ids_1.append(padded_segment_ids_1)
+
+            padded_segment_ids_2 = item['segment_ids_2'] + [-1] * residual
+            segment_ids_2.append(padded_segment_ids_2)
+
+            padded_chunk_ids = item["chunk_ids"] + [-1] * residual
+            chunk_ids.append(padded_chunk_ids)
+
+            padded_labels = item['labels'] + [-100] * residual
+            labels.append(padded_labels)
+
+            padded_position_ids = item['position_ids'] + [0] * residual
+            position_ids.append(padded_position_ids)
+
+        return {
+            "input_ids": torch.LongTensor(input_ids),
+            "segment_ids_1": torch.LongTensor(segment_ids_1),
+            "segment_ids_2": torch.LongTensor(segment_ids_2),
+            "chunk_ids": torch.LongTensor(chunk_ids),
+            "labels": torch.LongTensor(labels),
+            "position_ids": torch.LongTensor(position_ids)
+        }
