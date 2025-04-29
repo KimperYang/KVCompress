@@ -94,11 +94,11 @@ def main():
     train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     # wandb.init()
-    # os.environ["WANDB_PROJECT"]="kvcompress"
-    # os.environ["WANDB_WATCH"]="false"
-    run = wandb.init(
-        project="kvcompress",    # Specify your project
-    )
+    os.environ["WANDB_PROJECT"]="kvcompress"
+    os.environ["WANDB_WATCH"]="false"
+    # run = wandb.init(
+    #     project="kvcompress",    # Specify your project
+    # )
 
     training_args = TrainingArguments(
         output_dir="training_res/chunkaug_20k",
