@@ -193,9 +193,9 @@ B, L = 1, 10                        # one batch, 3 chunks (0,1,2) + 2 globals
 # second = torch.tensor([[1,2,1,2,  1,2,1,2, 1, 1]])
 # chunks = torch.tensor([[0,0,0,0,  1,1,1,1, -1, -1]])  # last index (9) is global
 
-first  = torch.tensor([[0,0,1,1,1,1,2,2,2,3,3,1,1,1,2,2,0,0, -1]])
-second = torch.tensor([[3,3,1,1,1,2,1,1,2,1,2,1,1,2,1,2,3,3, -1]])
-chunks = torch.tensor([[-1,-1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,-1,-1, -1]])  # last index (9) is global
+first  = torch.tensor([[0,0,1,1,1,1,2,2,2,3,3,0,0, -1]])
+second = torch.tensor([[3,3,1,1,1,2,1,1,2,1,2,3,3, -1]])
+chunks = torch.tensor([[-1,-1,0,0,0,0,0,0,0,0,0,-1,-1, -1]])  # last index (9) is global
 
 # mask = make_chunked_summary_mask(
 #     first_segments=first,

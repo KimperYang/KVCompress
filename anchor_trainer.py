@@ -81,10 +81,14 @@ def main():
         # use_flash_attention_2=True,
     )
 
+    anchor_id = list(range(128011, 128016))
+
     preprocessor = AnchorPreprocessor(
         tokenizer=global_tokenizer,
         max_len=4096,
-        anchor_id=128011
+        anchor_id=anchor_id,
+        anchor_num=len(anchor_id),
+        link_token_start=anchor_id[-1] + 1
     )
 
     train_dataset, eval_dataset = load_from_disk_then_process(dataset, preprocessor)
@@ -95,11 +99,11 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/anchor_continue_{dataset}_10k",
+        output_dir=f"training_res/anchor_5_qa_{dataset}_10k",
         report_to="wandb",
-        run_name=f"anchor_continue_{dataset}_10k",
+        run_name=f"anchor_5_qa_{dataset}_10k",
         per_device_train_batch_size= batch_size_per_device,
-        num_train_epochs=1,
+        num_train_epochs=2,
         # max_steps=4000,
         logging_dir="training_res/logs",
         logging_steps=10,

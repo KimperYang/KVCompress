@@ -1655,7 +1655,7 @@ class AnchorPreprocessor():
         max_len: int,
         anchor_id,
         anchor_num,
-        link_token_start = 128012,
+        link_token_start,
         link_token_num = 5
     ) -> None:
         self.tokenizer = tokenizer
@@ -1738,10 +1738,10 @@ class AnchorPreprocessor():
             for j in range(len(sentences)):
                 tem_id = self.tokenizer(sentences[j], add_special_tokens=False).input_ids
                 
-                input_ids += tem_id + [self.anchor]
-                segment_ids_1 += [j+1] * (len(tem_id) + 1)
-                segment_ids_2 += [1] * len(tem_id) + [2]
-                chunk_ids += [i] * (len(tem_id) + 1)
+                input_ids += tem_id + self.anchor
+                segment_ids_1 += [j+1] * (len(tem_id) + self.anchor_num)
+                segment_ids_2 += [1] * len(tem_id) + [2] * self.anchor_num
+                chunk_ids += [i] * (len(tem_id) + self.anchor_num)
                 
         user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
         user_id = [self.global_end_token] + self.tokenizer(user, add_special_tokens=False).input_ids
@@ -1802,10 +1802,10 @@ class AnchorPreprocessor():
             for j in range(len(sentences)):
                 tem_id = self.tokenizer(sentences[j], add_special_tokens=False).input_ids
                 
-                input_ids += tem_id + [self.anchor]
-                segment_ids_1 += [j+1] * (len(tem_id) + 1)
-                segment_ids_2 += [1] * len(tem_id) + [2]
-                chunk_ids += [i] * (len(tem_id) + 1)
+                input_ids += tem_id + self.anchor
+                segment_ids_1 += [j+1] * (len(tem_id) + self.anchor_num)
+                segment_ids_2 += [1] * len(tem_id) + [2] * self.anchor_num
+                chunk_ids += [i] * (len(tem_id) + self.anchor_num)
             
             input_ids += self.link_tokens[i]
             segment_ids_1 += [0] * self.link_token_num
