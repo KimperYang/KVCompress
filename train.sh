@@ -1,5 +1,5 @@
 # python preprocess.py
-export WANDB_API="297fefc6714432e38b47736829a56f96e540206a"
+export WANDB_API_KEY="297fefc6714432e38b47736829a56f96e540206a"
 accelerate launch --config_file config/step2.yaml --main_process_port 25671 chunkaug_ptr_trainer.py
 # accelerate launch --config_file config/step2.yaml --main_process_port 25671 compress_mix_trainer.py --dataset "qa"
 

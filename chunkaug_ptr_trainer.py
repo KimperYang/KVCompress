@@ -13,6 +13,7 @@ from typing import Tuple
 
 import datasets
 import torch
+import wandb
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from functools import partial
 
@@ -92,8 +93,12 @@ def main():
     data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_chunkaug")
     train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
-    os.environ["WANDB_PROJECT"]="kvcompress"
-    os.environ["WANDB_WATCH"]="false"
+    # wandb.init()
+    # os.environ["WANDB_PROJECT"]="kvcompress"
+    # os.environ["WANDB_WATCH"]="false"
+    run = wandb.init(
+        project="kvcompress",    # Specify your project
+    )
 
     training_args = TrainingArguments(
         output_dir="training_res/chunkaug_20k",

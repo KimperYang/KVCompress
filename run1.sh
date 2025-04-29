@@ -4,7 +4,7 @@ startTime=$(date +%s) #mark the start of job
 output_dir=$1
 run_name=$2
 
-export WANDB_API="297fefc6714432e38b47736829a56f96e540206a"
+export WANDB_API_KEY="297fefc6714432e38b47736829a56f96e540206a"
 
 conda activate kvm
 
