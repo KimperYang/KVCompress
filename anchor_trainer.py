@@ -73,9 +73,9 @@ def main():
 
     dataset = args.dataset
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/anchor_qa_10k/checkpoint-1122")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/anchor_5_ptr_10k/checkpoint-10000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/anchor_qa_10k/checkpoint-1122",
+        "training_res/anchor_5_ptr_10k/checkpoint-10000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
