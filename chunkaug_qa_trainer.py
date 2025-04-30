@@ -80,9 +80,9 @@ def main():
     # compress_tokens = list(range(128011, 128061))
     compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("chunkaug_20k/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/chunkaug_20k/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "chunkaug_20k/checkpoint-20000",
+        "training_res/chunkaug_20k/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
