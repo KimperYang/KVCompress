@@ -133,26 +133,35 @@ for i in range(total_num):
     for j in range(len(data[i]['documents'])):
         title = data[i]['documents'][j]['title']
         text = data[i]['documents'][j]['text']
-        tem_id = tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids
+        tem_id = tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids + [chunk_end_token]
 
         chunk_idx = 1
         for idx in range(0, len(tem_id), chunk_size):
             chunk_id = tem_id[idx : idx + chunk_size]
             chunk_len = len(chunk_id)
             
-            segment_ids_1.extend([chunk_idx] * (chunk_len + 1 + len(compress_tokens))+ [0] * link_token_num)
-            segment_ids_2.extend([1] * (chunk_len + 1) + [2] * len(compress_tokens)+ [3] * link_token_num)
-            position_ids.extend(list(range(current_index - chunk_len - 1, current_index + len(compress_tokens) + link_token_num)))
-            input_ids.extend(chunk_id + [chunk_end_token] + compress_tokens + link_tokens[chunk_idx-1])
+            segment_ids_1.extend([chunk_idx] * (chunk_len + 1 + len(compress_tokens)))
+            segment_ids_2.extend([1] * (chunk_len + 1) + [2] * len(compress_tokens))
+            chunk_index_ids.extend([j] * (chunk_len + 1 + len(compress_tokens)))
+            position_ids.extend(list(range(current_index - chunk_len - 1, current_index + len(compress_tokens))))
+            input_ids.extend(chunk_id + [chunk_end_token] + compress_tokens)
 
-            current_index += len(compress_tokens) + link_token_num
+            current_index += len(compress_tokens)
             chunk_idx += 1
+
+        output_sequence += link_tokens[j]
+        segment_ids_1 += [0] * link_token_num
+        segment_ids_2 += [3] * link_token_num
+        chunk_index_ids += [-1] * link_token_num
+        position_ids += list(range(current_index, current_index + link_token_num))
+        current_index += link_token_num
 
     user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + data[i]['question'] + "<|eot_id|>"
     user_id = [global_end_token] + tokenizer(user, add_special_tokens=False).input_ids
     user_len = len(user_id)
     segment_ids_1.extend([0] * user_len)
     segment_ids_2.extend([3] * user_len)
+    chunk_index_ids.extend([-1] * user_len)
     position_ids.extend(list(range(current_index, current_index + user_len)))
     input_ids.extend(user_id)
     current_index += user_len
@@ -161,12 +170,15 @@ for i in range(total_num):
     position_ids = torch.tensor([position_ids], device=model.device)
     segment_ids_1 = torch.tensor([segment_ids_1])
     segment_ids_2 = torch.tensor([segment_ids_2])
+    chunk_index_ids = torch.tensor([chunk_index_ids])
 
     mask = make_chunk_aug_mask(
-        source_segments_1=segment_ids_1,
-        target_segments_1=segment_ids_1,
-        source_segments_2=segment_ids_2,
-        target_segments_2=segment_ids_2,
+        source_seg1=segment_ids_1,
+        target_seg1=segment_ids_1,
+        source_seg2=segment_ids_2,
+        target_seg2=segment_ids_2,
+        source_chunk=chunk_index_ids,
+        target_chunk=chunk_index_ids,
         dtype=torch.bfloat16,
         add_causal_lm_mask=True
     ).unsqueeze(1).to(model.device)
