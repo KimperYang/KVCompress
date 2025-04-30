@@ -149,7 +149,7 @@ for i in range(total_num):
             current_index += len(compress_tokens)
             chunk_idx += 1
 
-        output_sequence += link_tokens[j]
+        input_ids += link_tokens[j]
         segment_ids_1 += [0] * link_token_num
         segment_ids_2 += [3] * link_token_num
         chunk_index_ids += [-1] * link_token_num
