@@ -101,7 +101,7 @@ def main():
     segment_ids_2 = []
     chunk_ids = []
 
-    anchor_id=list(range(128011, 128061))
+    anchor_id=list(range(128011, 128016))
     anchor_num = len(anchor_id)
     mem_start=128254
     mem_end=128255

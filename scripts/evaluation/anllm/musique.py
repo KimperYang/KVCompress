@@ -93,7 +93,8 @@ def main():
     segment_ids_2 = []
     chunk_ids = []
 
-    anchor_id=128011
+    anchor_id=list(range(128011, 128016))
+    anchor_num = len(anchor_id)
     mem_start=128254
     mem_end=128255
 
@@ -134,10 +135,10 @@ def main():
             for j in range(len(sentences)):
                 tem_id = global_tokenizer(sentences[j], add_special_tokens=False).input_ids
                 
-                input_ids += tem_id + [anchor_id]
-                segment_ids_1 += [j+1] * (len(tem_id) + 1)
-                segment_ids_2 += [1] * len(tem_id) + [2]
-                chunk_ids += [idx] * (len(tem_id) + 1)
+                input_ids += tem_id + anchor_id
+                segment_ids_1 += [j+1] * (len(tem_id) +  anchor_num)
+                segment_ids_2 += [1] * len(tem_id) + [2] *  anchor_num
+                chunk_ids += [idx] * (len(tem_id) +  anchor_num)
 
 
         user_prompt = data[i]['question'] + "<|eot_id|>"
