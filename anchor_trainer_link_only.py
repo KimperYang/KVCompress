@@ -84,7 +84,7 @@ def main():
     embed = global_model.get_input_embeddings()
     for p in global_model.parameters():
         p.requires_grad = False
-    embed.weight.requires_grad = True 
+    embed.weight.requires_grad = True
 
     trained_index = [128016, 128065]
     mask = torch.zeros_like(embed.weight, dtype=torch.bool)
@@ -116,7 +116,7 @@ def main():
         report_to="wandb",
         run_name=f"anchor_5_freeze_{dataset}_10k",
         per_device_train_batch_size= batch_size_per_device,
-        num_train_epochs=2,
+        num_train_epochs=1,
         # max_steps=4000,
         logging_dir="training_res/logs",
         logging_steps=10,
@@ -137,7 +137,7 @@ def main():
         # split_batches=True,
         dispatch_batches=False,
         eval_on_start=False,
-        seed = 42
+        seed=42
     )
 
     trainer = AnchorTrainer(
