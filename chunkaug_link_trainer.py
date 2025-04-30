@@ -83,9 +83,9 @@ def main():
     # compress_tokens = list(range(128011, 128061))
     compress_tokens = list(range(128011, 128061))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/chunkaug_qa_20k/checkpoint-1122")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/chunkaug_20k/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/chunkaug_qa_20k/checkpoint-1122",
+        "training_res/chunkaug_20k/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -96,7 +96,7 @@ def main():
         p.requires_grad = False
     embed.weight.requires_grad = True
 
-    trained_index = [128061, 128111]
+    trained_index = [128011, 128111]
     mask = torch.zeros_like(embed.weight, dtype=torch.bool)
     mask[trained_index[0]:trained_index[1]] = True 
 
@@ -124,11 +124,11 @@ def main():
     # )
 
     training_args = TrainingArguments(
-        output_dir="training_res/chunkaug_qa_link_only_20k",
+        output_dir="training_res/chunkaug_qa_link_comp_only_20k",
         report_to="wandb",
-        run_name="chunkaug_qa_link_only_20k",
+        run_name="chunkaug_qa_link_comp_only_20k",
         per_device_train_batch_size= batch_size_per_device,
-        num_train_epochs=1,
+        num_train_epochs=2,
         logging_dir="training_res/logs",
         logging_steps=10,
         save_steps=1000,

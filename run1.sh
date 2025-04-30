@@ -8,10 +8,10 @@ export WANDB_API_KEY="297fefc6714432e38b47736829a56f96e540206a"
 
 conda activate kvm
 
-CUDA_VISIBLE_DEVICES=0 python scripts/evaluation/chunkaug/hqa2_eval.py --run "chunkaug_qa_20k" --ckpt 1122 &
-CUDA_VISIBLE_DEVICES=1 python scripts/evaluation/chunkaug/nq2_eval.py --run "chunkaug_qa_20k" --ckpt 1122 &
-CUDA_VISIBLE_DEVICES=2 python scripts/evaluation/chunkaug/tqa_eval.py --run "chunkaug_qa_20k" --ckpt 1122 &
-CUDA_VISIBLE_DEVICES=3 python scripts/evaluation/chunkaug/wiki_eval.py --run "chunkaug_qa_20k" --ckpt 1122 &
+# CUDA_VISIBLE_DEVICES=0 python scripts/evaluation/chunkaug/hqa2_eval.py --run "chunkaug_qa_20k" --ckpt 1122 &
+# CUDA_VISIBLE_DEVICES=1 python scripts/evaluation/chunkaug/nq2_eval.py --run "chunkaug_qa_20k" --ckpt 1122 &
+# CUDA_VISIBLE_DEVICES=2 python scripts/evaluation/chunkaug/tqa_eval.py --run "chunkaug_qa_20k" --ckpt 1122 &
+# CUDA_VISIBLE_DEVICES=3 python scripts/evaluation/chunkaug/wiki_eval.py --run "chunkaug_qa_20k" --ckpt 1122 &
 
 
-# accelerate launch --config_file config/step2.yaml --main_process_port 25671 chunkaug_ptr_trainer.py
+accelerate launch --config_file config/step2.yaml --main_process_port 25671 chunkaug_link_trainer.py
