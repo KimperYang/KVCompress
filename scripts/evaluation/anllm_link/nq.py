@@ -2,6 +2,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import pandas as pd    
 import json
+import os
 import datetime
 import string
 from typing import List
@@ -23,26 +24,15 @@ ckpt = args.ckpt
 pos = args.pos
 reencode_num = args.reencode
 
-link_token_num = reencode_num
-link_token_start = 128012
-
-link_tokens = [
-    [
-        link_token_start + idx * link_token_num + offset
-        for offset in range(link_token_num)
-    ]
-    for idx in range(10)
-]
-
 if pos in [0, 4, 9]:
     jsonObj = pd.read_json(path_or_buf=f'data/nq/nq-open-10_{pos}.jsonl', lines=True)
 else:
     jsonObj = pd.read_json(path_or_buf='data/nq/nq-open-10_0.jsonl', lines=True)
 
 
-global_tokenizer = AutoTokenizer.from_pretrained(f"{run_name}/checkpoint-{ckpt}")
+global_tokenizer = AutoTokenizer.from_pretrained(f"training_res/{run_name}/checkpoint-{ckpt}")
 
-global_model = AutoModelForCausalLM.from_pretrained(f"{run_name}/checkpoint-{ckpt}", torch_dtype=torch.bfloat16)
+global_model = AutoModelForCausalLM.from_pretrained(f"training_res/{run_name}/checkpoint-{ckpt}", torch_dtype=torch.bfloat16)
 
 def filter_kv(past_key_values, segment_ids_2):
     num_layers = len(past_key_values)
@@ -111,9 +101,21 @@ def main():
     segment_ids_2 = []
     chunk_ids = []
 
-    anchor_id=128011
+    anchor_id=list(range(128011, 128061))
+    anchor_num = len(anchor_id)
     mem_start=128254
     mem_end=128255
+
+    link_token_num = reencode_num
+    link_token_start = anchor_id[-1] + 1
+
+    link_tokens = [
+        [
+            link_token_start + idx * link_token_num + offset
+            for offset in range(link_token_num)
+        ]
+        for idx in range(10)
+    ]
 
     template = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a intelligent AI assistant. Please answer questions based on the user's instruction. Below are some reference documents that may help you in answering the user's question.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
     # total_num = len(jsonObj)
@@ -157,10 +159,10 @@ def main():
             for j in range(len(sentences)):
                 tem_id = global_tokenizer(sentences[j], add_special_tokens=False).input_ids
                 
-                input_ids += tem_id + [anchor_id]
-                segment_ids_1 += [j+1] * (len(tem_id) + 1)
-                segment_ids_2 += [1] * len(tem_id) + [2]
-                chunk_ids += [idx] * (len(tem_id) + 1)
+                input_ids += tem_id + anchor_id
+                segment_ids_1 += [j+1] * (len(tem_id) + anchor_num)
+                segment_ids_2 += [1] * len(tem_id) + [2] * anchor_num
+                chunk_ids += [idx] * (len(tem_id) + anchor_num)
 
             input_ids += link_tokens[idx]
             segment_ids_1 += [0] * link_token_num
@@ -235,7 +237,10 @@ def main():
     current_time = datetime.datetime.now()
     time_str = current_time.strftime("%Y%m%d-%H%M%S")
 
-    file_name = f"result/anllm_link/NQ_ckpt{ckpt}_at{pos}_{accuracy}_{time_str}_{reencode_num}.jsonl"
+    if not os.path.exists(f"result/{run_name}"):
+        os.makedirs(f"result/{run_name}")
+
+    file_name = f"result/{run_name}/NQ_ckpt{ckpt}_at{pos}_{accuracy}_{time_str}_{reencode_num}.jsonl"
 
     with open(file_name, 'w', encoding='utf-8') as f:
         for entry in res_list:
