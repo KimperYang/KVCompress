@@ -8,22 +8,21 @@ from typing import List
 from tqdm import tqdm
 import regex
 from src.data.attention import make_anchor_attention
-from datasets import load_dataset
 import argparse
 import os
 
 parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
 parser.add_argument('--run', type=str, required=True, help='Path under training_res')
 parser.add_argument('--ckpt', type=int, required=True, help='Checkpoint number')
-parser.add_argument('--reencode', type=int, required=True, help='Reencode num')
 
 args = parser.parse_args()
 
 run_name = args.run
 ckpt = args.ckpt
-reencode_num = args.reencode
 
-data=load_dataset("dgslibisey/MuSiQue", split='validation')
+file_path = "data/block_eval/tqa/eval.jsonl"
+with open(file_path, 'r') as file:
+    data = [json.loads(line) for line in file]
 
 global_tokenizer = AutoTokenizer.from_pretrained(f"training_res/{run_name}/checkpoint-{ckpt}")
 
@@ -101,17 +100,6 @@ def main():
     mem_start=128254
     mem_end=128255
 
-    link_token_num = reencode_num
-    link_token_start = anchor_id[-1] + 1
-
-    link_tokens = [
-        [
-            link_token_start + idx * link_token_num + offset
-            for offset in range(link_token_num)
-        ]
-        for idx in range(20)
-    ]
-
     template = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a intelligent AI assistant. Please answer questions based on the user's instruction. Below are some reference documents that may help you in answering the user's question.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
     total_num = len(data)
     correct_num = 0
@@ -125,9 +113,9 @@ def main():
 
         doc_list = []
 
-        for j in range(len(data[i]['paragraphs'])):
-            title = data[i]['paragraphs'][j]['title']
-            text = data[i]['paragraphs'][j]['paragraph_text']
+        for j in range(0,10):
+            title = data[i]['documents'][j]['title']
+            text = data[i]['documents'][j]['text']
             doc_list.append({'title': title, 'text':text})
 
         sys_ids = global_tokenizer(template, add_special_tokens=False).input_ids
@@ -140,7 +128,7 @@ def main():
         chunk_ids.extend([-1] * sys_len)
 
 
-        for idx in range(len(data[i]['paragraphs'])):
+        for idx in range(0,10):
             title = doc_list[idx]['title']
             text = doc_list[idx]['text']
             context = f"Document [{idx+1}](Title: {title}) {text}\n"
@@ -150,14 +138,10 @@ def main():
                 tem_id = global_tokenizer(sentences[j], add_special_tokens=False).input_ids
                 
                 input_ids += tem_id + anchor_id
-                segment_ids_1 += [j+1] * (len(tem_id) + anchor_num)
-                segment_ids_2 += [1] * len(tem_id) + [2] * anchor_num
-                chunk_ids += [idx] * (len(tem_id) + anchor_num)
+                segment_ids_1 += [j+1] * (len(tem_id) +  anchor_num)
+                segment_ids_2 += [1] * len(tem_id) + [2] *  anchor_num
+                chunk_ids += [idx] * (len(tem_id) +  anchor_num)
 
-            input_ids += link_tokens[idx]
-            segment_ids_1 += [0] * link_token_num
-            segment_ids_2 += [0] * link_token_num
-            chunk_ids += [-1] * link_token_num
 
         user_prompt = data[i]['question'] + "<|eot_id|>"
         user_id = [mem_end] + global_tokenizer(user_prompt, add_special_tokens=False).input_ids
@@ -214,11 +198,11 @@ def main():
         print(data[i]['question'])
         print(response)
 
-        score = best_subspan_em(response, [data[i]["answer"]])
+        score = best_subspan_em(response, data[i]["answers"])
 
         correct_num = correct_num + int(score)
 
-        res_list.append({"id": str(i),"question": data[i]['question'], "response": response, "gold_answer": [data[i]["answer"]], "Score": score})
+        res_list.append({"id": str(i),"question": data[i]['question'], "response": response, "gold_answer": data[i]["answers"], "Score": score})
         print("Accuracy", correct_num / (i+1))
 
     accuracy = correct_num / total_num
@@ -227,9 +211,10 @@ def main():
     current_time = datetime.datetime.now()
     time_str = current_time.strftime("%Y%m%d-%H%M%S")
 
+
     if not os.path.exists(f"result/{run_name}"):
         os.makedirs(f"result/{run_name}")
-    file_name = f"result/{run_name}/musique_ckpt{ckpt}_{accuracy}_{time_str}_{reencode_num}.jsonl"
+    file_name = f"result/{run_name}/tqa_ckpt{ckpt}_{accuracy}_{time_str}.jsonl"
 
     with open(file_name, 'w', encoding='utf-8') as f:
         for entry in res_list:

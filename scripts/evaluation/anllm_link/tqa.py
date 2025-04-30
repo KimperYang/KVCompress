@@ -8,7 +8,6 @@ from typing import List
 from tqdm import tqdm
 import regex
 from src.data.attention import make_anchor_attention
-from datasets import load_dataset
 import argparse
 import os
 
@@ -23,7 +22,9 @@ run_name = args.run
 ckpt = args.ckpt
 reencode_num = args.reencode
 
-data=load_dataset("dgslibisey/MuSiQue", split='validation')
+file_path = "data/block_eval/tqa/eval.jsonl"
+with open(file_path, 'r') as file:
+    data = [json.loads(line) for line in file]
 
 global_tokenizer = AutoTokenizer.from_pretrained(f"training_res/{run_name}/checkpoint-{ckpt}")
 
@@ -109,7 +110,7 @@ def main():
             link_token_start + idx * link_token_num + offset
             for offset in range(link_token_num)
         ]
-        for idx in range(20)
+        for idx in range(10)
     ]
 
     template = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a intelligent AI assistant. Please answer questions based on the user's instruction. Below are some reference documents that may help you in answering the user's question.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
@@ -125,9 +126,9 @@ def main():
 
         doc_list = []
 
-        for j in range(len(data[i]['paragraphs'])):
-            title = data[i]['paragraphs'][j]['title']
-            text = data[i]['paragraphs'][j]['paragraph_text']
+        for j in range(0,10):
+            title = data[i]['documents'][j]['title']
+            text = data[i]['documents'][j]['text']
             doc_list.append({'title': title, 'text':text})
 
         sys_ids = global_tokenizer(template, add_special_tokens=False).input_ids
@@ -140,7 +141,7 @@ def main():
         chunk_ids.extend([-1] * sys_len)
 
 
-        for idx in range(len(data[i]['paragraphs'])):
+        for idx in range(0,10):
             title = doc_list[idx]['title']
             text = doc_list[idx]['text']
             context = f"Document [{idx+1}](Title: {title}) {text}\n"
@@ -214,11 +215,11 @@ def main():
         print(data[i]['question'])
         print(response)
 
-        score = best_subspan_em(response, [data[i]["answer"]])
+        score = best_subspan_em(response, data[i]["answers"])
 
         correct_num = correct_num + int(score)
 
-        res_list.append({"id": str(i),"question": data[i]['question'], "response": response, "gold_answer": [data[i]["answer"]], "Score": score})
+        res_list.append({"id": str(i),"question": data[i]['question'], "response": response, "gold_answer": data[i]["answers"], "Score": score})
         print("Accuracy", correct_num / (i+1))
 
     accuracy = correct_num / total_num
@@ -229,7 +230,8 @@ def main():
 
     if not os.path.exists(f"result/{run_name}"):
         os.makedirs(f"result/{run_name}")
-    file_name = f"result/{run_name}/musique_ckpt{ckpt}_{accuracy}_{time_str}_{reencode_num}.jsonl"
+
+    file_name = f"result/{run_name}/tqa_ckpt{ckpt}_{accuracy}_{time_str}_{reencode_num}.jsonl"
 
     with open(file_name, 'w', encoding='utf-8') as f:
         for entry in res_list:
