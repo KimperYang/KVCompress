@@ -44,6 +44,9 @@ def load_from_disk_then_process(
         if data_component_name == "qa":
             preprocessor_fn = preprocessor.process_qa
             data_path = "dataset_cache/processed/compress_qa"
+        elif data_component_name == "qa_link":
+            preprocessor_fn = preprocessor.process_qa_link
+            data_path = "dataset_cache/processed/compress_qa"
         else:
             raise NotImplementedError()
         remove_columns=['prompt', 'question', 'answers', 'generated', 'inputs', 'documents']
@@ -94,10 +97,12 @@ def main():
         compress_tokens=compress_tokens,
         chunk_size=100,
         chunk_end_token=128253,
-        do_shuffle=True
+        do_shuffle=True,
+        link_token_num = 5,
+        max_memory_num = 10
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa_link", preprocessor)
     # wandb.init()
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
@@ -106,9 +111,9 @@ def main():
     # )
 
     training_args = TrainingArguments(
-        output_dir="training_res/chunkaug_qa_20k",
+        output_dir="training_res/chunkaug_qa_link_20k",
         report_to="wandb",
-        run_name="chunkaug_qa_20k",
+        run_name="chunkaug_qa_link_20k",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
