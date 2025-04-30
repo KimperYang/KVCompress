@@ -2112,10 +2112,13 @@ class chunkaug_attention_preprocessor():
                 current_index += len(self.compress_tokens)
                 chunk_idx += 1
 
-            input_ids += self.link_tokens[j]
+            output_sequence += self.link_tokens[j]
             segment_ids_1 += [0] * self.link_token_num
             segment_ids_2 += [3] * self.link_token_num
             chunk_index_ids += [-1] * self.link_token_num
+            labels += [-100] * self.link_token_num
+            position_ids += list(range(current_index, current_index + self.link_token_num))
+            current_index += self.link_token_num
 
         user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
         user_id = [self.global_end_token] + self.tokenizer(user, add_special_tokens=False).input_ids
