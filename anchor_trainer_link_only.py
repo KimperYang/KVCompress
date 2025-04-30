@@ -92,7 +92,7 @@ def main():
 
     def mask_grad(grad):
         return grad * mask
-    embed.register_hook(mask_grad)
+    embed.weight.register_hook(mask_grad)
 
     anchor_id = list(range(128011, 128016))
 
