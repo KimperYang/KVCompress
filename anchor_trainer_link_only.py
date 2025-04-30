@@ -91,7 +91,7 @@ def main():
     mask[trained_index[0]:trained_index[1]] = True 
 
     def mask_grad(grad):
-        return grad * mask
+        return grad * mask.to(grad.device)
     embed.weight.register_hook(mask_grad)
 
     anchor_id = list(range(128011, 128016))
