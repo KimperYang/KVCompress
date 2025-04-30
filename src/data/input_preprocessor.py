@@ -1970,7 +1970,92 @@ class chunkaug_attention_preprocessor():
             "chunk_ids": chunk_index_ids[:self.max_len],
             "position_ids": position_ids[:self.max_len],
         }
-    
+
+    def process_qa(
+        self,
+        example
+    ):
+        
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        chunk_index_ids = []
+        labels = []
+        position_ids = []
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(qa_prompts)
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids + [self.global_start_token]
+        sys_len = len(system_input_ids)
+
+        output_sequence.extend(system_input_ids)
+        segment_ids_1.extend([0] * sys_len)
+        segment_ids_2.extend([3] * sys_len)
+        chunk_index_ids.extend([-1] * sys_len)
+        labels.extend([-100] * sys_len)
+        position_ids.extend(list(range(sys_len)))
+
+        doc_list = []
+
+        for k in range(len(example['documents'])):
+            title = example['documents'][k]['title']
+            text = example['documents'][k]['text']
+            doc_list.append({'title': title, 'text':text})
+
+        if self.do_shuffle:
+            random.shuffle(doc_list)
+
+        current_index = sys_len
+
+        for j in range(len(example['documents'])):
+
+            title = doc_list[j]['title']
+            text = doc_list[j]['text']
+            tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids + [self.chunk_end_token]
+
+            chunk_idx = 1
+            for idx in range(0, len(tem_id), self.chunk_size):
+                chunk_id = tem_id[idx : idx + self.chunk_size]
+                chunk_len = len(chunk_id)
+                
+                segment_ids_1.extend([chunk_idx] * (chunk_len + 1 + len(self.compress_tokens)))
+                segment_ids_2.extend([1] * (chunk_len + 1) + [2] * len(self.compress_tokens))
+                chunk_index_ids.extend([j] * (chunk_len + 1 + len(self.compress_tokens)))
+                labels.extend([-100] * (chunk_len + 1 + len(self.compress_tokens)))
+                position_ids.extend(list(range(current_index - chunk_len - 1, current_index + len(self.compress_tokens))))
+                output_sequence.extend(chunk_id + [self.chunk_end_token] + self.compress_tokens)
+
+                current_index += len(self.compress_tokens)
+                chunk_idx += 1
+
+        user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        user_id = [self.global_end_token] + self.tokenizer(user, add_special_tokens=False).input_ids
+        user_len = len(user_id)
+        segment_ids_1.extend([0] * user_len)
+        segment_ids_2.extend([3] * user_len)
+        chunk_index_ids.extend([-1] * user_len)
+        labels.extend([-100] * user_len)
+        position_ids.extend(list(range(current_index, current_index + user_len)))
+        output_sequence.extend(user_id)
+        current_index += user_len
+
+        ans_id = self.tokenizer(example['generated'] + "<|eot_id|>", add_special_tokens=False).input_ids
+        ans_len = len(ans_id)
+        segment_ids_1.extend([0] * ans_len)
+        segment_ids_2.extend([3] * ans_len)
+        chunk_index_ids.extend([-1] * ans_len)
+        labels.extend(ans_id)
+        position_ids.extend(list(range(current_index, current_index + ans_len)))
+        output_sequence.extend(ans_id)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "chunk_ids": chunk_index_ids,
+            "position_ids": position_ids,
+        }
+
 def custom_collate_chunkaug(batch):
 
         input_ids = []
