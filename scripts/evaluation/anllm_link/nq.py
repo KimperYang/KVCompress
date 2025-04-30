@@ -10,6 +10,7 @@ from tqdm import tqdm
 import regex
 from src.data.attention import make_anchor_attention
 import argparse
+import os
 
 parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
 parser.add_argument('--run', type=str, required=True, help='Path under training_res')

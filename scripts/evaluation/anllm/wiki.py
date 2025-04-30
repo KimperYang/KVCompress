@@ -9,6 +9,7 @@ from tqdm import tqdm
 import regex
 from src.data.attention import make_anchor_attention
 import argparse
+import os
 
 parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
 parser.add_argument('--run', type=str, required=True, help='Path under training_res')
@@ -23,9 +24,9 @@ file_path = "data/wiki/dev.json"
 with open(file_path, 'r') as file:
     data = json.load(file)
 
-global_tokenizer = AutoTokenizer.from_pretrained(f"{run_name}/checkpoint-{ckpt}")
+global_tokenizer = AutoTokenizer.from_pretrained(f"training_res/{run_name}/checkpoint-{ckpt}")
 
-global_model = AutoModelForCausalLM.from_pretrained(f"{run_name}/checkpoint-{ckpt}", torch_dtype=torch.bfloat16)
+global_model = AutoModelForCausalLM.from_pretrained(f"training_res/{run_name}/checkpoint-{ckpt}", torch_dtype=torch.bfloat16)
 
 def filter_kv(past_key_values, segment_ids_2):
     num_layers = len(past_key_values)
@@ -210,7 +211,10 @@ def main():
     current_time = datetime.datetime.now()
     time_str = current_time.strftime("%Y%m%d-%H%M%S")
 
-    file_name = f"result/anllm/wiki_ckpt{ckpt}_{accuracy}_{time_str}.jsonl"
+
+    if not os.path.exists(f"result/{run_name}"):
+        os.makedirs(f"result/{run_name}")
+    file_name = f"result/{run_name}/wiki_ckpt{ckpt}_{accuracy}_{time_str}.jsonl"
 
     with open(file_name, 'w', encoding='utf-8') as f:
         for entry in res_list:
