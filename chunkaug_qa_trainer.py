@@ -81,11 +81,11 @@ def main():
     batch_size_per_device = 4
 
     # compress_tokens = list(range(128011, 128061))
-    compress_tokens = list(range(128011, 128061))
+    compress_tokens = list(range(128011, 128021))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("training_res/chunkaug_20k/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/chunkaug_10_20k/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "training_res/chunkaug_20k/checkpoint-20000",
+        "training_res/chunkaug_10_20k/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -102,7 +102,7 @@ def main():
         max_memory_num = 10
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_link", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
     # wandb.init()
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
@@ -111,9 +111,9 @@ def main():
     # )
 
     training_args = TrainingArguments(
-        output_dir="training_res/chunkaug_qa_link_20k",
+        output_dir="training_res/chunkaug_10_qa_link_20k",
         report_to="wandb",
-        run_name="chunkaug_qa_link_20k",
+        run_name="chunkaug_10_qa_link_20k",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
