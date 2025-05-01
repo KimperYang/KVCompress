@@ -102,7 +102,7 @@ def main():
         max_memory_num = 10
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process("qa_link", preprocessor)
     # wandb.init()
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
