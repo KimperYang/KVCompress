@@ -5,6 +5,7 @@ import argparse
 import json
 import regex
 import datasets
+from tqdm import tqdm
 
 from typing import List
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -102,7 +103,7 @@ global_start_token = 128254
 global_end_token = 128255
 compress_tokens = list(range(128011, 128061))
 
-for i in range(total_num):
+for i in tqdm(range(total_num)):
     print("Processing sample:", str(i))
 
     input_ids = []

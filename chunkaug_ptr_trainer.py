@@ -70,7 +70,7 @@ def main():
     batch_size_per_device = 4
 
     # compress_tokens = list(range(128011, 128061))
-    compress_tokens = list(range(128011, 128061))
+    compress_tokens = list(range(128011, 128021))
 
     global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     global_model = AutoModelForCausalLM.from_pretrained(
@@ -90,7 +90,7 @@ def main():
     )
 
     # train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk2", preprocessor)
-    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_chunkaug")
+    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_chunkaug_10")
     train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     # wandb.init()
@@ -101,10 +101,10 @@ def main():
     # )
 
     training_args = TrainingArguments(
-        output_dir="training_res/chunkaug_20k",
+        output_dir="training_res/chunkaug_10_20k",
         report_to="wandb",
-        run_name="chunkaug_20k",
-        per_device_train_batch_size= batch_size_per_device,
+        run_name="chunkaug_10_20k",
+        per_device_train_batch_size=batch_size_per_device,
         # num_train_epochs=2,
         max_steps=20000,
         logging_dir="training_res/logs",
@@ -116,7 +116,7 @@ def main():
         bf16=True,
         learning_rate=5e-6,
         do_eval=True,
-        per_device_eval_batch_size = batch_size_per_device,
+        per_device_eval_batch_size=batch_size_per_device,
         evaluation_strategy="steps",  # Add this line
         eval_steps=5000,
         gradient_checkpointing=True,

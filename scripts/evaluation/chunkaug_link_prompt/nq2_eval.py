@@ -5,6 +5,7 @@ import argparse
 import json
 import regex
 import datasets
+from tqdm import tqdm
 
 from typing import List
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -111,7 +112,7 @@ link_tokens = [
     for idx in range(10)
 ]
 
-for i in range(total_num):
+for i in tqdm(range(total_num)):
     print("Processing sample:", str(i))
 
     input_ids = []

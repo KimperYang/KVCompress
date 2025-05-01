@@ -5,6 +5,7 @@ import argparse
 import json
 import regex
 import datasets
+from tqdm import tqdm
 
 from typing import List
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -101,7 +102,7 @@ global_start_token = 128254
 global_end_token = 128255
 compress_tokens = list(range(128011, 128061))
 
-for i in range(total_num):
+for i in tqdm(range(total_num)):
     print("Processing sample:", str(i))
 
     input_ids = []
@@ -188,14 +189,14 @@ for i in range(total_num):
         generated_seq = tokenizer.batch_decode(generated, skip_special_tokens=True)
 
         response = generated_seq[0].split('assistant\n\n')[-1]
-        print(response)
+        # print(response)
 
         score = best_subspan_em(response, [data[i]["answer"]])
 
         correct_num = correct_num + int(score)
 
         res_list.append({"id": str(i),"question": data[i]["question"], "response": response, "gold_answer": data[i]["answer"], "Score": score})
-        print("Correct progress", correct_num)
+        print("wiki", correct_num / (i+1))
     
 if not os.path.exists(f"result/prompt/{run_name}"):
     os.makedirs(f"result/prompt/{run_name}")
