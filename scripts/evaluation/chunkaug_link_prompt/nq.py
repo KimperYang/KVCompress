@@ -82,9 +82,9 @@ ckpt = args.ckpt
 pos = args.pos
 
 if pos in [0, 4, 9]:
-    file_path = f'data/raw/nq/nq-open-10_{pos}.jsonl'
+    file_path = f'data/nq/nq-open-10_{pos}.jsonl'
 else:
-    file_path = 'data/raw/nq/nq-open-10_0.jsonl'
+    file_path = 'data/nq/nq-open-10_0.jsonl'
 
 with open(file_path, 'r') as file:
     data = [json.loads(line) for line in file]
