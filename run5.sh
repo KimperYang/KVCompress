@@ -14,8 +14,8 @@ conda activate kvm
 # CUDA_VISIBLE_DEVICES=2 python scripts/evaluation/chunkaug_prompt/wiki_eval.py --run "chunkaug_qa_20k" --ckpt 1122 &
 
 
-python scripts/evaluation/chunkaug_prompt/musique.py --run "chunkaug_10_qa_20k" --ckpt 1122
-python scripts/evaluation/chunkaug_link_prompt/musique.py --run "chunkaug_10_qa_link_20k" --ckpt 1122
+# python scripts/evaluation/chunkaug_prompt/musique.py --run "chunkaug_10_qa_20k" --ckpt 1122
+python scripts/evaluation/chunkaug_link_prompt/musique.py --run "chunkaug_10_qa_link_continue_20k" --ckpt 1122
 # python scripts/evaluation/chunkaug_prompt/nq.py --run "chunkaug_10_qa_20k" --ckpt 1122 --pos 1
 # python scripts/evaluation/chunkaug_prompt/nq.py --run "chunkaug_10_qa_20k" --ckpt 1122 --pos 2
 # python scripts/evaluation/chunkaug_prompt/nq.py --run "chunkaug_10_qa_20k" --ckpt 1122 --pos 3
