@@ -98,7 +98,7 @@ chunk_size = 100
 chunk_end_token = 128253
 global_start_token = 128254
 global_end_token = 128255
-compress_tokens = list(range(128011, 128061))
+compress_tokens = list(range(128011, 128021))
 
 for i in tqdm(range(total_num)):
     print("Processing sample:", str(i))

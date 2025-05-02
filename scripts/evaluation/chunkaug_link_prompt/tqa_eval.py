@@ -100,7 +100,7 @@ chunk_size = 100
 chunk_end_token = 128253
 global_start_token = 128254
 global_end_token = 128255
-compress_tokens = list(range(128011, 128061))
+compress_tokens = list(range(128011, 128021))
 
 link_token_num = 5
 link_token_start = compress_tokens[-1] + 1
