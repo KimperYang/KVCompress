@@ -89,7 +89,7 @@ def main():
 
     train_dataset, eval_dataset = load_from_disk_then_process("text_multichunk", preprocessor)
     # data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/mapped_text_multichunk_20_ratiocomp")
-    train_dataset, eval_dataset = data_component["train"], data_component["test"]
+    # train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
