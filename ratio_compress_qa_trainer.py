@@ -89,9 +89,9 @@ def main():
     # compress_tokens = list(range(128011, 128091))
     # ratio = 0.2
 
-    global_tokenizer = AutoTokenizer.from_pretrained("ratioaug_10_compress_multichunk20k/checkpoint-20000")
+    global_tokenizer = AutoTokenizer.from_pretrained("training_res/ratioaug_10_compress_multichunk20k/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "ratioaug_10_compress_multichunk20k/checkpoint-20000",
+        "training_res/ratioaug_10_compress_multichunk20k/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
