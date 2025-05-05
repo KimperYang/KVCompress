@@ -98,7 +98,7 @@ def main():
         output_dir=f"training_res/ratioaug_{int(ratio * 100)}_compress_multichunk20k",
         report_to="wandb",
         run_name=f"ratioaug_compress_{int(ratio * 100)}_multichunk20k",
-        per_device_train_batch_size= batch_size_per_device,
+        per_device_train_batch_size=batch_size_per_device,
         # num_train_epochs=2,
         max_steps=20000,
         logging_dir="training_res/logs",

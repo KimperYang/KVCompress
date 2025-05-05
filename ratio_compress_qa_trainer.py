@@ -82,14 +82,16 @@ def main():
     dataset = args.dataset
 
     batch_size_per_device = 4
-    compress_tokens = list(range(128011, 128211))
-    ratio = 0.5
+    compress_tokens = [128011] * 100
+    ratio = 0.1
+    # compress_tokens = list(range(128011, 128211))
+    # ratio = 0.5
     # compress_tokens = list(range(128011, 128091))
     # ratio = 0.2
 
-    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+    global_tokenizer = AutoTokenizer.from_pretrained("ratioaug_10_compress_multichunk20k/checkpoint-20000")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "meta-llama/Llama-3.2-1B",
+        "ratioaug_10_compress_multichunk20k/checkpoint-20000",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -102,7 +104,7 @@ def main():
         compress_ratio=ratio,
         chunk_end_token=128253,
         do_shuffle=True,
-        link_token_num = 1,
+        link_token_num = 5,
         max_chunk_num = 10,
     )
 
@@ -112,9 +114,9 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/ratio_compress_{dataset}",
+        output_dir=f"training_res/ratioaug_10_{dataset}",
         report_to="wandb",
-        run_name=f"ratio_{int(ratio * 100)}_compress_{dataset}",
+        run_name=f"ratioaug_{int(ratio * 100)}_compress_{dataset}",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
