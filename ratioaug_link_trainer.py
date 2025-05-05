@@ -97,6 +97,19 @@ def main():
         # use_flash_attention_2=True,
     )
 
+    embed = global_model.get_input_embeddings()
+    for p in global_model.parameters():
+        p.requires_grad = False
+    embed.weight.requires_grad = True
+
+    trained_index = [128012, 128062]
+    mask = torch.zeros_like(embed.weight, dtype=torch.bool)
+    mask[trained_index[0]:trained_index[1]] = True 
+
+    def mask_grad(grad):
+        return grad * mask.to(grad.device)
+    embed.weight.register_hook(mask_grad)
+
     preprocessor = compress_ratio_preprocessor(
         tokenizer=global_tokenizer,
         max_len=4096,
@@ -114,11 +127,11 @@ def main():
     os.environ["WANDB_WATCH"]="false"
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/ratioaug_10_{dataset}",
+        output_dir=f"training_res/ratioaug_10_{dataset}_continue",
         report_to="wandb",
-        run_name=f"ratioaug_{int(ratio * 100)}_compress_{dataset}",
+        run_name=f"ratioaug_{int(ratio * 100)}_compress_{dataset}_continue",
         per_device_train_batch_size= batch_size_per_device,
-        num_train_epochs=2,
+        num_train_epochs=1,
         logging_dir="training_res/logs",
         logging_steps=10,
         gradient_accumulation_steps=2,
