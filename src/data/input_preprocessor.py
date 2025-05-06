@@ -1114,42 +1114,29 @@ class compress_ratio_preprocessor():
         segment_ids_2 = []
         labels = []
         position_ids = []
-        chunk_counter = 0
 
-        chunk_len = int(random.randint(self.single_chunk_size[0], self.single_chunk_size[1]) / 2)
-        # 1. Split text_tokens into slices of size `chunk_len`.
-        for i in range(0, len(text_tokens), 2 * chunk_len):
+        chunk_len = random.randint(500, 1500)
 
-            chunk_counter += 1
-            chunk1 = text_tokens[i : i + chunk_len]
-            chunk2 = text_tokens[i + chunk_len : i + 2 * chunk_len]
-            chunk1_len = len(chunk1)
-            chunk2_len = len(chunk2)  # could be < self.chunk_size for the last chunk
+        chunk1 = text_tokens[:chunk_len]
+        chunk2 = text_tokens[chunk_len:]
+        chunk1_len = len(chunk1)
+        chunk2_len = len(chunk2)  # could be < self.chunk_size for the last chunk
 
-            if chunk2_len < chunk_len:
-                break  # no more tokens
+        chunk_compress_token_len = self.round_up_to_10((chunk_len) * self.compress_ratio)
+        chunk_compress_tokens = self.compress_tokens[:chunk_compress_token_len]
 
-            chunk_compress_token_len = self.round_up_to_10((chunk_len) * self.compress_ratio)
-            chunk_compress_tokens = self.compress_tokens[:chunk_compress_token_len]
+        # 2. Build the processed chunk
+        processed_chunk = chunk1 + [self.chunk_end_token] + chunk_compress_tokens + chunk2
 
-            # 2. Build the processed chunk
-            processed_chunk = chunk1 + [self.chunk_end_token] + chunk_compress_tokens + chunk2
+        segment_ids_1.extend([1] * len(processed_chunk))
 
-            # 3. Check if adding this processed chunk would exceed max_length
-            if len(output_sequence) + len(processed_chunk) > self.max_len:
-                # If we can't add this chunk without exceeding,
-                # we stop processing further.
-                break
+        segment_ids_2.extend([1] * (chunk1_len + 1) + [2] * chunk_compress_token_len + [3] * chunk2_len)
 
-            segment_ids_1.extend([chunk_counter] * len(processed_chunk))
+        labels.extend([-100] * (chunk1_len + 1 + chunk_compress_token_len) + chunk2)
 
-            segment_ids_2.extend([1] * (chunk1_len + 1) + [2] * chunk_compress_token_len + [3] * chunk2_len)
+        position_ids.extend(list(range(-chunk1_len - 1, chunk_compress_token_len + chunk2_len)))
 
-            labels.extend([-100] * (chunk1_len + 1 + chunk_compress_token_len) + chunk2)
-
-            position_ids.extend(list(range(-chunk1_len - 1, chunk_compress_token_len + chunk2_len)))
-
-            output_sequence.extend(processed_chunk)
+        output_sequence.extend(processed_chunk)
 
         return {
             "input_ids": output_sequence,
@@ -1158,6 +1145,61 @@ class compress_ratio_preprocessor():
             "labels": labels,
             "position_ids": position_ids,
         }
+
+    # def process_pretraining_singlechunk_completion_compress(
+    #     self,
+    #     example
+    # ):
+    #     text_tokens = self.tokenizer(example['text']).input_ids
+    #     output_sequence = []
+    #     segment_ids_1 = []
+    #     segment_ids_2 = []
+    #     labels = []
+    #     position_ids = []
+    #     chunk_counter = 0
+
+    #     chunk_len = int(random.randint(self.single_chunk_size[0], self.single_chunk_size[1]) / 2)
+    #     # 1. Split text_tokens into slices of size `chunk_len`.
+    #     for i in range(0, len(text_tokens), 2 * chunk_len):
+
+    #         chunk_counter += 1
+    #         chunk1 = text_tokens[i : i + chunk_len]
+    #         chunk2 = text_tokens[i + chunk_len : i + 2 * chunk_len]
+    #         chunk1_len = len(chunk1)
+    #         chunk2_len = len(chunk2)  # could be < self.chunk_size for the last chunk
+
+    #         if chunk2_len < chunk_len:
+    #             break  # no more tokens
+
+    #         chunk_compress_token_len = self.round_up_to_10((chunk_len) * self.compress_ratio)
+    #         chunk_compress_tokens = self.compress_tokens[:chunk_compress_token_len]
+
+    #         # 2. Build the processed chunk
+    #         processed_chunk = chunk1 + [self.chunk_end_token] + chunk_compress_tokens + chunk2
+
+    #         # 3. Check if adding this processed chunk would exceed max_length
+    #         if len(output_sequence) + len(processed_chunk) > self.max_len:
+    #             # If we can't add this chunk without exceeding,
+    #             # we stop processing further.
+    #             break
+
+    #         segment_ids_1.extend([chunk_counter] * len(processed_chunk))
+
+    #         segment_ids_2.extend([1] * (chunk1_len + 1) + [2] * chunk_compress_token_len + [3] * chunk2_len)
+
+    #         labels.extend([-100] * (chunk1_len + 1 + chunk_compress_token_len) + chunk2)
+
+    #         position_ids.extend(list(range(-chunk1_len - 1, chunk_compress_token_len + chunk2_len)))
+
+    #         output_sequence.extend(processed_chunk)
+
+    #     return {
+    #         "input_ids": output_sequence,
+    #         "segment_ids_1": segment_ids_1,
+    #         "segment_ids_2": segment_ids_2,
+    #         "labels": labels,
+    #         "position_ids": position_ids,
+    #     }
 
     def process_pretraining_multichunk_completion_compress(
         self,

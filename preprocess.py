@@ -12,18 +12,21 @@ from typing import Tuple
 
 import datasets
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
-from src.data.input_preprocessor import custom_collate_chunkaug, chunkaug_attention_preprocessor
+from src.data.input_preprocessor import custom_collate_chunkaug, compress_ratio_preprocessor
 from src.data.input_preprocessor import AnchorPreprocessor
 def load_from_disk_then_process(
     data_component_name: str,
-    preprocessor: chunkaug_attention_preprocessor,
+    preprocessor: compress_ratio_preprocessor,
 ) -> Tuple[datasets.IterableDataset, datasets.Dataset]:
     """
     load the downloaded data from disk and then pair it with the preprocessor
     """
-    if data_component_name in ["text_multichunk"]:
+    if data_component_name in ["text_singlechunk", "text_multichunk"]:
         data_path = f"dataset_cache/processed/fineweb/{data_component_name}"
-        if data_component_name == "text_multichunk":
+        if data_component_name == "text_singlechunk":
+            preprocessor_fn = preprocessor.process_pretraining_singlechunk_completion_compress
+            data_path = "dataset_cache/processed/fineweb/text"
+        elif data_component_name == "text_multichunk":
             preprocessor_fn = preprocessor.process_pretraining_multichunk_completion_compress
             data_path = "dataset_cache/processed/fineweb/text_min2048"
         else:
@@ -145,21 +148,23 @@ def main():
     #     max_chunk_num = 20,
     # )
 
-    compress_tokens = list(range(128011, 128021))
+    compress_tokens = [128011] * 400
+    ratio = 0.25
 
-    preprocessor = chunkaug_attention_preprocessor(
+    preprocessor = compress_ratio_preprocessor(
         tokenizer=global_tokenizer,
         max_len=4096,
         compress_tokens=compress_tokens,
-        chunk_size=100,
+        compress_ratio=ratio,
         chunk_end_token=128253,
-        do_shuffle=True
+        do_shuffle=True,
+        max_chunk_num=10,
     )
 
-    train_set, test_set = load_from_disk_then_process("text_multichunk", preprocessor)
-    dataset = datasets.DatasetDict({'train': train_set, 'test': test_set})
+    train_set, eval_set = load_from_disk_then_process("text_singlechunk", preprocessor)
+    dataset = datasets.DatasetDict({'train': train_set, 'test': eval_set})
     shards = {'train': 128, 'test': 4}
-    dataset.save_to_disk("dataset_cache/processed/fineweb/mapped_chunkaug_10", num_shards=shards, num_proc=128)
+    dataset.save_to_disk("dataset_cache/processed/fineweb/ratioaug_25", num_shards=shards, num_proc=128)
 
 
 if __name__ == "__main__":
