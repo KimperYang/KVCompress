@@ -97,11 +97,11 @@ total_num = len(data)
 correct_num = 0
 res_list = []
 
-compress_ratio = 0.1
+compress_ratio = 0.25
 chunk_end_token=128253
 global_start_token=128254
 global_end_token=128255
-compress_tokens = [128011] * 100
+compress_tokens = [128011] * 400
 
 link_token_num = 5
 link_token_start = compress_tokens[-1] + 1
