@@ -1108,7 +1108,7 @@ class compress_ratio_preprocessor():
         self,
         example
     ):
-        text_tokens = self.tokenizer(example['text']).input_ids
+        text_tokens = self.tokenizer(example['text']).input_ids[:self.max_len]
         output_sequence = []
         segment_ids_1 = []
         segment_ids_2 = []
