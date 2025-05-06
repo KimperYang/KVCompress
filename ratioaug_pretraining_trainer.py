@@ -87,7 +87,7 @@ def main():
     )
 
     # train_dataset, eval_dataset = load_from_disk_then_process("text_singlechunk", preprocessor)
-    data_component = datasets.load_from_disk("ddataset_cache/processed/fineweb/ratioaug_25")
+    data_component = datasets.load_from_disk("dataset_cache/processed/fineweb/ratioaug_25")
     train_dataset, eval_dataset = data_component["train"], data_component["test"]
 
     os.environ["WANDB_PROJECT"]="kvcompress"
