@@ -25,7 +25,7 @@ def load_from_disk_then_process(
         data_path = f"dataset_cache/processed/fineweb/{data_component_name}"
         if data_component_name == "text_singlechunk":
             preprocessor_fn = preprocessor.process_pretraining_singlechunk_completion_compress
-            data_path = "dataset_cache/processed/fineweb/text"
+            data_path = "dataset_cache/processed/fineweb/text_min2048"
         elif data_component_name == "text_multichunk":
             preprocessor_fn = preprocessor.process_pretraining_multichunk_completion_compress
             data_path = "dataset_cache/processed/fineweb/text_min2048"
