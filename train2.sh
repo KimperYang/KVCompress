@@ -2,7 +2,7 @@
 # accelerate launch --config_file config/step2.yaml --main_process_port 25671 anchor_ptr_trainer.py
 # accelerate launch --config_file config/step2.yaml --main_process_port 25671 anchor_trainer.py --dataset "qa"
 # accelerate launch --config_file config/step2.yaml --main_process_port 25671 ratio_compress_qa_trainer.py --dataset "qa_compress"
-accelerate launch --config_file config/step2.yaml --main_process_port 25671 ratioaug_link_trainer.py --dataset "qa_compress_link"
+accelerate launch --config_file config/4gpu_step8.yaml --main_process_port 25671 ratio_compress_qa_sum5.py --reencode 5
 # CUDA_VISIBLE_DEVICES=0 python scripts/evaluation/anllm/hqa.py --run "training_res/anchor_continue_qa_10k" --ckpt 561 &
 # CUDA_VISIBLE_DEVICES=1 python scripts/evaluation/anllm/musique.py --run "training_res/anchor_continue_qa_10k" --ckpt 561 &
 # CUDA_VISIBLE_DEVICES=2 python scripts/evaluation/anllm/nq.py --run "training_res/anchor_continue_qa_10k" --ckpt 561 --pos 0 &

@@ -96,13 +96,13 @@ def load_from_disk_then_process(
 def main():
 
     parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
-    parser.add_argument('--reencode', type=str, required=True, help='Path under training_res')
+    parser.add_argument('--reencode', type=int, required=True, help='Path under training_res')
 
     args = parser.parse_args()
 
     reencode = args.reencode
 
-    batch_size_per_device = 4
+    batch_size_per_device = 2
     compress_tokens = [128011] * 400
     ratio = 0.25
 
@@ -163,7 +163,7 @@ def main():
         max_steps=6000,
         logging_dir="training_res/logs",
         logging_steps=10,
-        gradient_accumulation_steps=2,
+        gradient_accumulation_steps=8,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
