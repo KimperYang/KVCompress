@@ -157,7 +157,7 @@ def main():
         do_shuffle=True
     )
 
-    train_set, eval_set = load_from_disk_then_process("text_singlechunk", preprocessor)
+    train_set, eval_set = load_from_disk_then_process("text_multichunk", preprocessor)
     dataset = datasets.DatasetDict({'train': train_set, 'test': eval_set})
     shards = {'train': 128, 'test': 4}
     dataset.save_to_disk("dataset_cache/processed/fineweb/chunkaug_25", num_shards=shards, num_proc=128)
