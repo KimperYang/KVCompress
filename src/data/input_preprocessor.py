@@ -2233,3 +2233,508 @@ def custom_collate_chunkaug(batch):
             "labels": torch.LongTensor(labels),
             "position_ids": torch.LongTensor(position_ids)
         }
+
+class sum_compress_preprocessor():
+    '''
+    Apply one piece of memory to non-memory use samples to enable batch forward pass for calculating KV.
+    '''
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        max_len: int,
+        special_token_start: int,
+        mem_start: int,
+        mem_end: int,
+        reencode_num: int,
+        do_shuffle: bool,
+        compression_tokens,
+        chunk_end_token,
+        ratio,
+    ) -> None:
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+        self.special_token_start = special_token_start
+        self.mem_start = mem_start
+        self.mem_end = mem_end
+        self.reencode_num = reencode_num
+        self.do_shuffle = do_shuffle
+        self.link_tokens = [
+            [
+                special_token_start + idx * self.reencode_num + offset
+                for offset in range(self.reencode_num)
+            ]
+            for idx in range(40)
+        ]
+        self.compression_tokens = compression_tokens
+        self.compress_ratio = ratio
+        self.chunk_end_token = chunk_end_token
+
+    def round_up_to_10(self, num):
+        return math.ceil(num / 10.0) * 10
+
+    def process_sftmem(
+        self,
+        example: Dict[str, str],
+    ):
+        conversation = example["conversations"]
+
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+        current_position = 0
+
+        sys = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(general_prompts) + "<|eot_id|>"
+
+        sys_tokens = self.tokenizer(sys, add_special_tokens= False)['input_ids']
+        sys_tokens += [self.mem_start]
+        sys_len = len(sys_tokens)
+
+        output_sequence.extend(sys_tokens)
+        segment_ids_1.extend([0]*sys_len)
+        segment_ids_2.extend([3]*sys_len)
+        labels.extend([-100]*sys_len)
+        position_ids.extend(list(range(sys_len)))
+        current_position += sys_len
+
+        if len(conversation) % 2 != 0:
+            if conversation[0]["from"] == "Assistant":
+                conversation = conversation[1:]
+            elif conversation[-1]["from"] == "User":
+                conversation = conversation[:-1]
+            else:
+                conversation = conversation[:-1]
+
+        for idx in range(0, len(conversation) - 2, 2):
+            if (
+                conversation[idx]["from"] == "User" and
+                conversation[idx + 1]["from"] == "Assistant"
+            ):
+                text = (
+                    "<|start_header_id|>user<|end_header_id|>\n\n" + conversation[idx]["value"]
+                    + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+                    + conversation[idx + 1]["value"] + "<|eot_id|>"
+                )
+                memory_tokens = self.tokenizer(text, add_special_tokens = False)['input_ids'] + [self.chunk_end_token]
+                mem_len = len(memory_tokens)
+
+                chunk_compress_token_len = self.round_up_to_10((mem_len) * self.compress_ratio)
+                if chunk_compress_token_len > len(self.compression_tokens):
+                    chunk_compress_token_len = len(self.compression_tokens)
+                chunk_compress_tokens = self.compression_tokens[:chunk_compress_token_len]
+
+                output_sequence.extend(memory_tokens + chunk_compress_tokens + self.link_tokens[int(idx / 2)])
+                segment_ids_1.extend([int(idx / 2) + 1] * (mem_len + chunk_compress_token_len + self.reencode_num))
+                segment_ids_2.extend([1] * mem_len + [2] * chunk_compress_token_len + [3] * self.reencode_num)
+                labels.extend([-100] * (mem_len + chunk_compress_token_len + self.reencode_num))
+                position_ids.extend(list(range(current_position - mem_len, current_position + chunk_compress_token_len + self.reencode_num)))
+                current_position += chunk_compress_token_len + self.reencode_num
+
+        last_q = (
+            "<|start_header_id|>user<|end_header_id|>\n\n" +
+            conversation[len(conversation) - 2]["value"] +
+            "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        )
+
+        last_q_ids = self.tokenizer(last_q, add_special_tokens= False)['input_ids']
+        last_q_ids = [self.mem_end] + last_q_ids
+
+        output_sequence.extend(last_q_ids)
+        segment_ids_1.extend([0] * len(last_q_ids))
+        segment_ids_2.extend([3] * len(last_q_ids))
+        labels.extend([-100] * len(last_q_ids))
+        position_ids.extend(list(range(current_position, current_position + len(last_q_ids))))
+        current_position += len(last_q_ids)
+
+
+        last_a = conversation[len(conversation) - 1]["value"] + "<|eot_id|>"
+        last_a_ids = self.tokenizer(last_a, add_special_tokens= False)['input_ids']
+
+        output_sequence.extend(last_a_ids)
+        segment_ids_1.extend([0] * len(last_a_ids))
+        segment_ids_2.extend([3] * len(last_a_ids))
+        labels.extend(last_a_ids)
+        position_ids.extend(list(range(current_position, current_position + len(last_a_ids))))
+        current_position += len(last_a_ids)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_sft(
+        self,
+        example: Dict[str, str],
+    ):
+        conversation = example['conversations']
+
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+        current_position = 0
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(general_prompts) + "<|eot_id|>"
+        system_tokenized = self.tokenizer(system, add_special_tokens=False)
+        system_input_ids = system_tokenized.input_ids
+        sys_len = len(system_input_ids)
+
+        output_sequence.extend(system_input_ids)
+        segment_ids_1.extend([0]*sys_len)
+        segment_ids_2.extend([3]*sys_len)
+        labels.extend([-100]*sys_len)
+        position_ids.extend(list(range(sys_len)))
+        current_position += sys_len
+
+        for i in range(len(conversation)):
+
+            if conversation[i]["from"] == "User":
+
+                t = "<|start_header_id|>user<|end_header_id|>\n\n" + conversation[i]["value"]  + "<|eot_id|>" 
+
+                input_ids = self.tokenizer(t, add_special_tokens=False).input_ids
+
+                if len(labels) + len(input_ids) >= self.max_len: 
+                    break
+
+                output_sequence.extend(input_ids)
+                segment_ids_1.extend([0] * len(input_ids))
+                segment_ids_2.extend([3] * len(input_ids))
+                position_ids.extend(list(range(current_position, current_position + len(input_ids))))
+                labels.extend([-100] * len(input_ids))
+                current_position += len(input_ids)
+
+            elif conversation[i]["from"] == "Assistant":
+                t = "<|start_header_id|>assistant<|end_header_id|>\n\n" + conversation[i]["value"]
+
+                input_ids = self.tokenizer(t, add_special_tokens=False).input_ids
+
+                if len(labels) + len(input_ids) > self.max_len - 1: 
+                    input_ids = input_ids[:self.max_len - 1 - len(labels)]
+
+                input_ids += [128009]
+
+                output_sequence.extend(input_ids)
+                segment_ids_1.extend([0] * len(input_ids))
+                segment_ids_2.extend([3] * len(input_ids))
+                position_ids.extend(list(range(current_position, current_position + len(input_ids))))
+                labels.extend(input_ids)
+                current_position += len(input_ids)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_text(
+        self,
+        example: Dict[str, str],
+    ):
+        text_tokens = self.tokenizer(example["text"])['input_ids'][:self.max_len]
+
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+
+        output_sequence.extend(text_tokens)
+        segment_ids_1.extend([0] * len(text_tokens))
+        segment_ids_2.extend([3] * len(text_tokens))
+        position_ids.extend(list(range(len(text_tokens))))
+        labels.extend(text_tokens)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_qamem(
+        self,
+        example: Dict[str, str],
+    ):
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(qa_prompts)
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids + [self.mem_start]
+        sys_len = len(system_input_ids)
+
+        output_sequence.extend(system_input_ids)
+        segment_ids_1.extend([0] * sys_len)
+        segment_ids_2.extend([3] * sys_len)
+        labels.extend([-100] * sys_len)
+        position_ids.extend(list(range(sys_len)))
+
+        doc_list = []
+
+        for k in range(0,10):
+            title = example['documents'][k]['title']
+            text = example['documents'][k]['text']
+            doc_list.append({'title': title, 'text':text})
+
+        if self.do_shuffle:
+            random.shuffle(doc_list)
+
+        current_index = sys_len
+        for j in range(0,10):
+            title = doc_list[j]['title']
+            text = doc_list[j]['text']
+            tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids + [self.chunk_end_token]
+
+            chunk_compress_token_len = self.round_up_to_10(len(tem_id) * self.compress_ratio)
+            if chunk_compress_token_len > len(self.compression_tokens):
+                chunk_compress_token_len = len(self.compression_tokens)
+            chunk_compress_tokens = self.compression_tokens[:chunk_compress_token_len]
+
+            segment_ids_1.extend([j+1] * (len(tem_id) + chunk_compress_token_len) + [0] * self.reencode_num)
+            segment_ids_2.extend([1] * len(tem_id) + [2] * chunk_compress_token_len + [3] * self.reencode_num)
+            labels.extend([-100] * (len(tem_id) + chunk_compress_token_len + self.reencode_num))
+            position_ids.extend(list(range(current_index - len(tem_id), current_index + chunk_compress_token_len + self.reencode_num)))
+            output_sequence.extend(tem_id + chunk_compress_tokens + self.link_tokens[j])
+
+            current_index += chunk_compress_token_len + self.reencode_num
+
+        user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        user_id = [self.mem_end] + self.tokenizer(user, add_special_tokens=False).input_ids
+        user_len = len(user_id)
+        segment_ids_1.extend([0] * user_len)
+        segment_ids_2.extend([3] * user_len)
+        labels.extend([-100] * user_len)
+        position_ids.extend(list(range(current_index, current_index + user_len)))
+        output_sequence.extend(user_id)
+        current_index += user_len
+
+        ans_id = self.tokenizer(example['generated'] + "<|eot_id|>", add_special_tokens=False).input_ids
+        ans_len = len(ans_id)
+        segment_ids_1.extend([0] * ans_len)
+        segment_ids_2.extend([3] * ans_len)
+        labels.extend(ans_id)
+        position_ids.extend(list(range(current_index, current_index + ans_len)))
+        output_sequence.extend(ans_id)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_qa(
+        self,
+        example: Dict[str, str],
+    ):     
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(qa_prompts)
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids
+
+        output_sequence.extend(system_input_ids)
+        segment_ids_1.extend([0] * len(system_input_ids))
+        segment_ids_2.extend([3] * len(system_input_ids))
+        labels.extend([-100] * len(system_input_ids))
+        position_ids.extend(list(range(len(system_input_ids))))
+        current_position = len(system_input_ids)
+
+        doc_list = []
+
+        for k in range(0,10):
+            title = example['documents'][k]['title']
+            text = example['documents'][k]['text']
+            doc_list.append({'title': title, 'text':text})
+
+        if self.do_shuffle:
+            random.shuffle(doc_list)
+
+        for j in range(0,10):
+            title = doc_list[j]['title']
+            text = doc_list[j]['text']
+            tem_id = self.tokenizer(f"Document [{j+1}](Title: {title}) {text}\n", add_special_tokens=False).input_ids
+
+            output_sequence.extend(tem_id)
+            segment_ids_1.extend([0] * len(tem_id))
+            segment_ids_2.extend([3] * len(tem_id))
+            position_ids.extend(list(range(current_position, current_position + len(tem_id))))
+            labels.extend([-100] * len(tem_id))
+            current_position += len(tem_id)
+
+        user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        user_id = self.tokenizer(user, add_special_tokens=False).input_ids
+        output_sequence.extend(user_id)
+        segment_ids_1.extend([0] * len(user_id))
+        segment_ids_2.extend([3] * len(user_id))
+        position_ids.extend(list(range(current_position, current_position + len(user_id))))
+        labels.extend([-100] * len(user_id))
+        current_position += len(user_id)
+
+        ans_id = self.tokenizer(example['generated'] + "<|eot_id|>", add_special_tokens=False).input_ids
+        output_sequence.extend(ans_id)
+        segment_ids_1.extend([0] * len(ans_id))
+        segment_ids_2.extend([3] * len(ans_id))
+        position_ids.extend(list(range(current_position, current_position + len(ans_id))))
+        labels.extend(ans_id)
+        current_position += len(ans_id)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_tulu(
+        self,
+        example: Dict[str, str],
+    ):
+        conversation = example['messages']
+
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+        current_position = 0
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(general_prompts) + "<|eot_id|>"
+        system_tokenized = self.tokenizer(system, add_special_tokens=False)
+        system_input_ids = system_tokenized.input_ids
+        sys_len = len(system_input_ids)
+
+        output_sequence.extend(system_input_ids)
+        segment_ids_1.extend([0]*sys_len)
+        segment_ids_2.extend([3]*sys_len)
+        labels.extend([-100]*sys_len)
+        position_ids.extend(list(range(sys_len)))
+        current_position += sys_len
+
+        for i in range(len(conversation)):
+
+            if conversation[i]["role"] == "user":
+
+                t = "<|start_header_id|>user<|end_header_id|>\n\n" + conversation[i]["content"]  + "<|eot_id|>"
+
+                tokenized = self.tokenizer(t, add_special_tokens=False)
+
+                input_ids = tokenized.input_ids
+                if len(labels) + len(input_ids) >= self.max_len:
+                    break
+
+                output_sequence.extend(input_ids)
+                segment_ids_1.extend([0] * len(input_ids))
+                segment_ids_2.extend([3] * len(input_ids))
+                position_ids.extend(list(range(current_position, current_position + len(input_ids))))
+                labels.extend([-100] * len(input_ids))
+                current_position += len(input_ids)
+
+            elif conversation[i]["role"] == "assistant":
+                t = "<|start_header_id|>assistant<|end_header_id|>\n\n" + conversation[i]["content"]
+                tokenized = self.tokenizer(t, add_special_tokens=False)
+
+                input_ids = tokenized.input_ids
+                if len(labels) + len(input_ids) > self.max_len - 1:
+                    input_ids = input_ids[:self.max_len - 1 - len(labels)]
+
+                input_ids += [128009]
+
+                output_sequence.extend(input_ids)
+                segment_ids_1.extend([0] * len(input_ids))
+                segment_ids_2.extend([3] * len(input_ids))
+                position_ids.extend(list(range(current_position, current_position + len(input_ids))))
+                labels.extend(input_ids)
+                current_position += len(input_ids)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
+
+    def process_xsum(
+        self,
+        example: Dict[str, str],
+    ):
+        output_sequence = []
+        segment_ids_1 = []
+        segment_ids_2 = []
+        labels = []
+        position_ids = []
+        current_position = 0
+
+        system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(summary_prompts) + "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids
+        system_input_ids = system_input_ids + [self.mem_start]
+        sys_len = len(system_input_ids)
+
+        output_sequence.extend(system_input_ids)
+        segment_ids_1.extend([0] * sys_len)
+        segment_ids_2.extend([3] * sys_len)
+        labels.extend([-100] * sys_len)
+        position_ids.extend(list(range(sys_len)))
+        current_position += sys_len
+
+        document_id = self.tokenizer(example['document'], add_special_tokens=False).input_ids
+        chunks = [document_id[i:i+100] for i in range(0, len(document_id), 100)]
+
+
+        for j in range(len(chunks)):
+            
+            tem_id = chunks[j] + [self.chunk_end_token]
+            chunk_compress_token_len = self.round_up_to_10(len(tem_id) * self.compress_ratio)
+            if chunk_compress_token_len > len(self.compression_tokens):
+                chunk_compress_token_len = len(self.compression_tokens)
+            chunk_compress_tokens = self.compression_tokens[:chunk_compress_token_len]
+
+            segment_ids_1.extend([j+1] * (len(tem_id) + chunk_compress_token_len) + [0] * self.reencode_num)
+            segment_ids_2.extend([1] * len(tem_id) + [2] * chunk_compress_token_len + [3] * self.reencode_num)
+            labels.extend([-100] * (len(tem_id) + chunk_compress_token_len + self.reencode_num))
+            position_ids.extend(list(range(current_position - len(tem_id), current_position + chunk_compress_token_len + self.reencode_num)))
+            output_sequence.extend(tem_id + chunk_compress_tokens + self.link_tokens[j])
+            current_position += chunk_compress_token_len + self.reencode_num
+
+        user =  "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        user_id = self.tokenizer(user, add_special_tokens=False).input_ids
+        user_id = [self.mem_end] + user_id
+        segment_ids_1.extend([0] * len(user_id))
+        segment_ids_2.extend([3] * len(user_id))
+        labels.extend([-100] * len(user_id))
+        position_ids.extend(list(range(current_position, current_position + len(user_id))))
+        output_sequence.extend(user_id)
+        current_position += len(user_id)
+
+        ans_id = self.tokenizer(example['summary'] + "<|eot_id|>", add_special_tokens=False).input_ids
+        segment_ids_1.extend([0] * len(ans_id))
+        segment_ids_2.extend([3] * len(ans_id))
+        labels.extend(ans_id)
+        position_ids.extend(list(range(current_position, current_position + len(ans_id))))
+        output_sequence.extend(ans_id)
+        current_position += len(ans_id)
+
+        return {
+            "input_ids": output_sequence,
+            "segment_ids_1": segment_ids_1,
+            "segment_ids_2": segment_ids_2,
+            "labels": labels,
+            "position_ids": position_ids,
+        }
