@@ -14,6 +14,7 @@ from typing import Tuple
 import datasets
 import torch
 import wandb
+import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from functools import partial
 
@@ -78,6 +79,14 @@ def load_from_disk_then_process(
 
 
 def main():
+
+    parser = argparse.ArgumentParser(description="Run script with specified ckpt and pos.")
+    parser.add_argument('--dataset', type=str, required=True, help='Path under training_res')
+
+    args = parser.parse_args()
+
+    dataset = args.dataset
+
     batch_size_per_device = 4
 
     # compress_tokens = list(range(128011, 128061))
@@ -102,7 +111,7 @@ def main():
         max_memory_num = 10
     )
 
-    train_dataset, eval_dataset = load_from_disk_then_process("qa_link", preprocessor)
+    train_dataset, eval_dataset = load_from_disk_then_process(dataset, preprocessor)
     # wandb.init()
     os.environ["WANDB_PROJECT"]="kvcompress"
     os.environ["WANDB_WATCH"]="false"
@@ -111,15 +120,15 @@ def main():
     # )
 
     training_args = TrainingArguments(
-        output_dir="training_res/chunkaug_10_qa_link_20k",
+        output_dir=f"training_res/chunkaug_25_{dataset}",
         report_to="wandb",
-        run_name="chunkaug_10_qa_link_20k",
+        run_name=f"chunkaug_25_{dataset}",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
         logging_steps=10,
         save_steps=1000,
-        gradient_accumulation_steps=2,
+        gradient_accumulation_steps=4,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
