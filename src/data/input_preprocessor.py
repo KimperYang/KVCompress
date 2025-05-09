@@ -2930,7 +2930,7 @@ class chunkaug_mix_preprocessor():
         position_ids = []
 
         system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n" + random.choice(qa_prompts)
-        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids + [self.global_start_token]
+        system_input_ids = self.tokenizer(system, add_special_tokens=False).input_ids + [self.mem_start]
         sys_len = len(system_input_ids)
 
         output_sequence.extend(system_input_ids)
@@ -2982,7 +2982,7 @@ class chunkaug_mix_preprocessor():
             current_index += self.link_token_num
 
         user = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n" + example['question'] + "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
-        user_id = [self.global_end_token] + self.tokenizer(user, add_special_tokens=False).input_ids
+        user_id = [self.mem_end] + self.tokenizer(user, add_special_tokens=False).input_ids
         user_len = len(user_id)
         segment_ids_1.extend([0] * user_len)
         segment_ids_2.extend([3] * user_len)
