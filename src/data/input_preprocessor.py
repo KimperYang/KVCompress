@@ -2752,8 +2752,8 @@ class chunkaug_mix_preprocessor():
         chunk_size:int,
         chunk_end_token: int,
         do_shuffle: bool,
-        global_start_token: int = 128254,
-        global_end_token: int = 128255,
+        mem_start: int = 128254,
+        mem_end: int = 128255,
         pad_token: int = 128004,
         link_token_num: int = 5,
         max_memory_num: int = 40
@@ -2764,8 +2764,8 @@ class chunkaug_mix_preprocessor():
         self.chunk_size = chunk_size
         self.chunk_end_token = chunk_end_token
         self.do_shuffle = do_shuffle
-        self.global_start_token = global_start_token
-        self.global_end_token = global_end_token
+        self.mem_start = mem_start
+        self.mem_end = mem_end
         self.pad_token = pad_token
         self.link_token_num = link_token_num
 
