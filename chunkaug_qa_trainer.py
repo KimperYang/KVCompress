@@ -120,15 +120,15 @@ def main():
     # )
 
     training_args = TrainingArguments(
-        output_dir=f"training_res/chunkaug_25_{dataset}",
+        output_dir=f"training_res/chunkaug_25_{dataset}_8gpu",
         report_to="wandb",
-        run_name=f"chunkaug_25_{dataset}",
+        run_name=f"chunkaug_25_{dataset}_8gpu",
         per_device_train_batch_size= batch_size_per_device,
         num_train_epochs=2,
         logging_dir="training_res/logs",
         logging_steps=10,
         save_steps=1000,
-        gradient_accumulation_steps=4,
+        gradient_accumulation_steps=2,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
