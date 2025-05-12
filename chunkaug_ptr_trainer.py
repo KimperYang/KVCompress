@@ -67,14 +67,14 @@ def load_from_disk_then_process(
 
 
 def main():
-    batch_size_per_device = 4
+    batch_size_per_device = 2
 
     # compress_tokens = list(range(128011, 128061))
     compress_tokens = list(range(128011, 128036))
 
-    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+    global_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B")
     global_model = AutoModelForCausalLM.from_pretrained(
-        "meta-llama/Llama-3.2-1B",
+        "meta-llama/Llama-3.1-8B",
         torch_dtype=torch.bfloat16,
         attn_implementation='sdpa',
         # use_flash_attention_2=True,
@@ -101,16 +101,16 @@ def main():
     # )
 
     training_args = TrainingArguments(
-        output_dir="training_res/chunkaug_25_20k",
+        output_dir="training_res/chunkaug_8B_25_20k",
         report_to="wandb",
-        run_name="chunkaug_25_20k",
+        run_name="chunkaug_8B_25_20k",
         per_device_train_batch_size=batch_size_per_device,
         # num_train_epochs=2,
         max_steps=20000,
         logging_dir="training_res/logs",
         logging_steps=10,
         save_steps=1000,
-        gradient_accumulation_steps=4,
+        gradient_accumulation_steps=8,
         warmup_ratio=0.1,
         lr_scheduler_type='cosine',
         bf16=True,
